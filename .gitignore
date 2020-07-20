@@ -1,0 +1,53 @@
+__pycache__
+
+.ipynb*
+.coverage
+/cover/*
+
+# mac
+.DS_Store
+
+.cache
+
+# Packages
+*.egg
+*.egg-info
+dist
+build
+eggs
+parts
+bin
+var
+sdist
+MANIFEST
+
+# Unit test / coverage reports
+.coverage 
+.pytest_cache
+
+# User-specific stuff:
+.idea/**/tasks.xml
+.idea/dictionaries
+.idea/**/ImagingReso.iml
+.idea/preferred-vcs.xml
+# User-specific stuff:
+.idea/**/workspace.xml
+.idea/**/ImagingReso.iml
+.idea/**/misc.xml
+.idea/**/modules.xml
+.idea/**/vcs.xml
+
+
+# Sensitive or high-churn files:
+.idea/**/dataSources/
+.idea/**/dataSources.ids
+.idea/**/dataSources.xml
+.idea/**/dataSources.local.xml
+.idea/**/sqlDataSources.xml
+.idea/**/dynamic.xml
+.idea/**/uiDesigner.xml
+.idea
+
+ImagingReso/plot_various_x_axis.py
+.swp
+ImagingReso/_light_elements.py

@@ -81,3 +81,16 @@ def test_convert_lambda_to_tof():
 
 	list_tof_expected = convert_lambda_to_tof(list_lambda, detector_offset, detector_sample_distance)
 	assert list_tof == list_tof_expected
+
+def test_min_tof_peak_value_from_edge_of_frame():
+	output_folder = "/tmp/"
+	detector_offset = 0  # micros
+	detector_sample_distance = 1300  # cm
+	o_make = MakeShuterValueFile(detector_offset=detector_offset,
+	                             output_folder=output_folder,
+	                             detector_sample_distance=detector_sample_distance)
+	min_tof_peak_value_from_edge_of_frame_calculated = o_make.min_tof_peak_value_from_edge_of_frame
+	min_tof_peak_value_from_edge_of_frame_expected = 985.8442871587462
+	assert np.abs(min_tof_peak_value_from_edge_of_frame_expected - min_tof_peak_value_from_edge_of_frame_calculated[
+		0]) \
+	       < 1e-3

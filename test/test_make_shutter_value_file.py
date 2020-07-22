@@ -1,10 +1,12 @@
 import numpy as np
-from pytest import approx
+import pytest
 
 TOLERANCE = 1e-6
+MN = 1.674927471e-27  #kg - neutron mass
+H = 6.62607004e-34 #J s - Planck constant
 
+from shutter_value_generator.make_shutter_value_file import MakeShuterValueFile
 
-from shutter_value_generator import make_shutter_value_file
 
 def make_test_clock_array():
 	clock_array = [100]
@@ -24,8 +26,13 @@ def make_test_range_array():
 		range_array.append(range_array[-1] * 2.)
 	return range_array
 
+def convert_lambda_to_tof(list_lambda, detector_offset, detector_sample_distance):
+	coeff = 0.3956
+	list_tof = [_lambda * detector_sample_distance / coeff - detector_offset for _lambda in list_lambda]
+	return list_tof
+
 def test_get_clock_cycle_table():
-	clock_cycle_data_returned = make_shutter_value_file.get_clock_cycle_table()
+	clock_cycle_data_returned = MakeShuterValueFile.get_clock_cycle_table()
 
 	clock_array = make_test_clock_array()
 	for _expected, _returned in zip(clock_array, clock_cycle_data_returned['Clock']):
@@ -42,3 +49,35 @@ def test_get_clock_cycle_table():
 	range_array = make_test_range_array()
 	for _expected, _returned in zip(range_array, clock_cycle_data_returned['Range(ms)']):
 		assert np.abs(_expected - _returned) < 0.01
+
+def test_make_sure_minimum_parameters_passed_in():
+	with pytest.raises(AttributeError):
+		MakeShuterValueFile()
+	with pytest.raises(AttributeError):
+		MakeShuterValueFile(output_folder="./")
+	with pytest.raises(AttributeError):
+		MakeShuterValueFile(output_folder="./", detector_sample_distance=1)
+
+def test_parameters_are_saved():
+	detector_offset = 10
+	output_folder = "/me/tmp"
+	detector_sample_distance = 20
+
+	o_make = MakeShuterValueFile(detector_offset=detector_offset,
+	                             output_folder=output_folder,
+	                             detector_sample_distance=detector_sample_distance)
+
+	assert o_make.output_folder == output_folder
+	assert o_make.detector_offset == detector_offset
+	assert o_make.detector_sample_distance == detector_sample_distance
+
+def test_convert_lambda_to_tof():
+	detector_offset = 5000  # micros
+	detector_sample_distance = 1300  # cm
+	list_lambda = [4, 5, 6]
+	list_tof = MakeShuterValueFile.convert_lambda_to_tof(list_wavelength=list_lambda,
+	                                                     detector_offset=detector_offset,
+	                                                     detector_sample_distance=detector_sample_distance)
+
+	list_tof_expected = convert_lambda_to_tof(list_lambda, detector_offset, detector_sample_distance)
+	assert list_tof == list_tof_expected

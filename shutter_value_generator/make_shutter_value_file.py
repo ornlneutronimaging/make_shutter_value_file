@@ -43,7 +43,6 @@ class MakeShuterValueFile:
 		"""
 		if output_folder is None:
 			raise AttributeError("output folder needs to be an existing output folder!")
-		self.output_folder = output_folder
 
 		if resonance_mode:
 			pass
@@ -54,12 +53,24 @@ class MakeShuterValueFile:
 
 			if detector_offset is None:
 				raise AttributeError("define a detector offset in micros!")
-			self.detector_offset = detector_offset
 
 			self.min_tof_peak_value_from_edge_of_frame = MakeShuterValueFile.convert_lambda_to_tof(
 					list_wavelength=[MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME],
 					detector_offset=0,
 					detector_sample_distance=self.detector_sample_distance)
+
+		self.resonance_mode = resonance_mode
+		self.output_folder = output_folder
+		self.detector_sample_distance = detector_sample_distance
+		self.detector_offset = detector_offset
+
+	def run(self, list_wavelength_requested=None):
+		if self.resonance_mode:
+			resonance_shutter_value_ascii = RESONANCE_SHUTTER_VALUES
+		else:
+			pass
+
+
 
 	@staticmethod
 	def get_clock_cycle_table():
@@ -89,6 +100,12 @@ class MakeShuterValueFile:
 			_tof = _lambda * detector_sample_distance / coeff - detector_offset
 			list_tof.append(_tof)
 		return list_tof
+
+	@staticmethod
+	def make_ascii_file_from_string(text="", filename=''):
+	    with open(filename, 'w') as f:
+	        f.write(text)
+
 
 	# @staticmethod
 	# def realign_frames_with_tof_requestd(list_tof=None, min_frame_threshold=0):

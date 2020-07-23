@@ -1,5 +1,7 @@
+import os
 import numpy as np
 import pytest
+from tempfile import NamedTemporaryFile
 
 TOLERANCE = 1e-6
 MN = 1.674927471e-27  #kg - neutron mass
@@ -7,6 +9,13 @@ H = 6.62607004e-34 #J s - Planck constant
 
 from shutter_value_generator.make_shutter_value_file import MakeShuterValueFile
 
+
+def make_tmp_ascii_filename():
+	ascii_filename = NamedTemporaryFile(prefix='TestingShutterValue', suffix='.txt').name
+	ascii_filename = os.path.abspath(ascii_filename)
+	if os.path.exists(ascii_filename):
+		os.remove(ascii_filename)
+	return ascii_filename
 
 def make_test_clock_array():
 	clock_array = [100]
@@ -58,15 +67,14 @@ def test_make_sure_minimum_parameters_passed_in():
 	with pytest.raises(AttributeError):
 		MakeShuterValueFile(output_folder="./", detector_sample_distance=1)
 
-def test_parameters_are_saved():
-	detector_offset = 10
-	output_folder = "/me/tmp"
-	detector_sample_distance = 20
-
+@pytest.mark.parametrize('detector_offset, output_folder, detector_sample_distance, resonance_mode',
+	                      [(10, "/me/tmp/", 20, True),
+	                       (10, "/me/tmp/2", 20, False)])
+def test_parameters_are_saved(detector_offset, output_folder, detector_sample_distance, resonance_mode):
 	o_make = MakeShuterValueFile(detector_offset=detector_offset,
 	                             output_folder=output_folder,
-	                             detector_sample_distance=detector_sample_distance)
-
+	                             detector_sample_distance=detector_sample_distance,
+	                             resonance_mode=resonance_mode)
 	assert o_make.output_folder == output_folder
 	assert o_make.detector_offset == detector_offset
 	assert o_make.detector_sample_distance == detector_sample_distance
@@ -82,7 +90,7 @@ def test_convert_lambda_to_tof():
 	list_tof_expected = convert_lambda_to_tof(list_lambda, detector_offset, detector_sample_distance)
 	assert list_tof == list_tof_expected
 
-def test_min_tof_peak_value_from_edge_of_frame():
+def test_calculate_min_tof_peak_value_from_edge_of_frame():
 	output_folder = "/tmp/"
 	detector_offset = 0  # micros
 	detector_sample_distance = 1300  # cm
@@ -94,3 +102,16 @@ def test_min_tof_peak_value_from_edge_of_frame():
 	assert np.abs(min_tof_peak_value_from_edge_of_frame_expected - min_tof_peak_value_from_edge_of_frame_calculated[
 		0]) \
 	       < 1e-3
+
+def test_file_correctly_created():
+	ascii_filename = make_tmp_ascii_filename()
+	file_contain = "entry1, entry2, entry3"
+	MakeShuterValueFile.make_ascii_file_from_string(text=file_contain,
+	                                                filename=ascii_filename)
+	with open(ascii_filename, 'r') as f:
+		file_created = f.readlines()
+	assert file_contain == file_created[0]
+
+
+
+

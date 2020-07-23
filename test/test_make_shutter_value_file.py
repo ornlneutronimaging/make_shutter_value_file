@@ -60,25 +60,31 @@ def test_get_clock_cycle_table():
 	for _expected, _returned in zip(range_array, clock_cycle_data_returned['Range(ms)']):
 		assert np.abs(_expected - _returned) < 0.01
 
-def test_make_sure_minimum_parameters_passed_in():
+def test_make_sure_minimum_parameters_passed_in_for_no_resonance_mode():
 	with pytest.raises(AttributeError):
 		MakeShuterValueFile()
 	with pytest.raises(AttributeError):
 		MakeShuterValueFile(output_folder="./")
 	with pytest.raises(AttributeError):
 		MakeShuterValueFile(output_folder="./", detector_sample_distance=1)
+	with pytest.raises(AttributeError):
+		MakeShuterValueFile(output_folder="./", detector_sample_distance=10, detector_offset=20)
 
-@pytest.mark.parametrize('detector_offset, output_folder, detector_sample_distance, resonance_mode',
-	                      [(10, "/me/tmp/", 20, True),
-	                       (10, "/me/tmp/2", 20, False)])
-def test_parameters_are_saved(detector_offset, output_folder, detector_sample_distance, resonance_mode):
+@pytest.mark.parametrize('detector_offset, output_folder, detector_sample_distance, resonance_mode, '
+                         'epics_chopper_wavelength_range',
+	                      [(10, "/me/tmp/", 20, True, [10, 20]),
+	                       (10, "/me/tmp/2", 20, False, [10, 20])])
+def test_parameters_are_saved(detector_offset, output_folder, detector_sample_distance, resonance_mode,
+                              epics_chopper_wavelength_range):
 	o_make = MakeShuterValueFile(detector_offset=detector_offset,
 	                             output_folder=output_folder,
 	                             detector_sample_distance=detector_sample_distance,
-	                             resonance_mode=resonance_mode)
+	                             resonance_mode=resonance_mode,
+	                             epics_chopper_wavelength_range=epics_chopper_wavelength_range)
 	assert o_make.output_folder == output_folder
 	assert o_make.detector_offset == detector_offset
 	assert o_make.detector_sample_distance == detector_sample_distance
+	assert o_make.epics_chopper_wavelength_range == epics_chopper_wavelength_range
 
 def test_convert_lambda_to_tof():
 	detector_offset = 5000  # micros
@@ -95,9 +101,11 @@ def test_calculate_min_tof_peak_value_from_edge_of_frame():
 	output_folder = "/tmp/"
 	detector_offset = 0  # micros
 	detector_sample_distance = 1300  # cm
+	epics_chopper_wavelength_range = [10, 20] # Angstroms
 	o_make = MakeShuterValueFile(detector_offset=detector_offset,
 	                             output_folder=output_folder,
-	                             detector_sample_distance=detector_sample_distance)
+	                             detector_sample_distance=detector_sample_distance,
+	                             epics_chopper_wavelength_range=epics_chopper_wavelength_range)
 	min_tof_peak_value_from_edge_of_frame_calculated = o_make.min_tof_peak_value_from_edge_of_frame
 	min_tof_peak_value_from_edge_of_frame_expected = 985.8442871587462
 	assert np.abs(min_tof_peak_value_from_edge_of_frame_expected - min_tof_peak_value_from_edge_of_frame_calculated[

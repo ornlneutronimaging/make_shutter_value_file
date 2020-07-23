@@ -35,7 +35,8 @@ class MakeShuterValueFile:
 	def __init__(self, output_folder=None,
 	             detector_sample_distance=None,
 	             detector_offset=None,
-	             resonance_mode=False):
+	             resonance_mode=False,
+	             epics_chopper_wavelength_range=None):
 		"""
 		:param output_folder:
 		:param detector_sample_distance: in m
@@ -43,7 +44,7 @@ class MakeShuterValueFile:
 		:param resonance_mode: boolean
 		"""
 		if output_folder is None:
-			raise AttributeError("output folder needs to be an existing output folder!")
+			raise AttributeError("Output folder needs to be an existing output folder!")
 
 		if resonance_mode:
 			pass
@@ -55,6 +56,11 @@ class MakeShuterValueFile:
 			if detector_offset is None:
 				raise AttributeError("define a detector offset in micros!")
 
+			if epics_chopper_wavelength_range is None:
+				raise AttributeError(
+					"Provides the maximum range of wavelength in Angstroms the chopper are set up for! ["
+					"min_value, max_value]")
+
 			self.min_tof_peak_value_from_edge_of_frame = MakeShuterValueFile.convert_lambda_to_tof(
 					list_wavelength=[MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME],
 					detector_offset=0,
@@ -64,17 +70,16 @@ class MakeShuterValueFile:
 		self.output_folder = output_folder
 		self.detector_sample_distance = detector_sample_distance
 		self.detector_offset = detector_offset
+		self.epics_chopper_wavelength_range = epics_chopper_wavelength_range
 
 	def run(self, list_wavelength_requested=None):
+		filename = Path(self.output_folder) / SHUTTER_VALUE_FILENAME
 		if self.resonance_mode:
 			resonance_shutter_value_ascii = RESONANCE_SHUTTER_VALUES
-			filename = Path(self.output_folder) / SHUTTER_VALUE_FILENAME
 			MakeShuterValueFile.make_ascii_file_from_string(text=resonance_shutter_value_ascii,
 			                                                filename=filename)
 		else:
 			pass
-
-
 
 	@staticmethod
 	def get_clock_cycle_table():
@@ -110,13 +115,23 @@ class MakeShuterValueFile:
 	    with open(filename, 'w') as f:
 	        f.write(text)
 
+	@staticmethod
+	def realign_frames_with_tof_requestd(list_wavelength_requested=None, detector_offset=None,
+	                                     detector_sample_distance=None):
+		min_tof_peak_value_from_edge_of_frame = MakeShuterValueFile.convert_lambda_to_tof(
+				list_wavelength=MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME,
+				detector_sample_distance=detector_sample_distance,
+				detector_offset=detector_offset)
 
-	# @staticmethod
-	# def realign_frames_with_tof_requestd(list_tof=None, min_frame_threshold=0):
-	# 	min_tof_peak_value_from_edge_of_frame = MakeShuterValueFile.convert_lambda_to_tof()
-	#
-	# 	for _tof in list_tof:
+		list_tof_requested = MakeShuterValueFile.convert_lambda_to_tof(list_wavelength=list_wavelength_requested,
+		                                                               detector_sample_distance=detector_sample_distance,
+		                                                               detector_offset=detector_offset)
 
+		# tof_frame_realign = TOF_FRAMES
+		# for _tof in list_tof_requested:
+		# 	for tof_frame in TOF_FRAMES:
+		# 		if _tof < tof_frame[0]:
+		#
 
 
 

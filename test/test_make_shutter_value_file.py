@@ -8,6 +8,7 @@ MN = 1.674927471e-27  #kg - neutron mass
 H = 6.62607004e-34 #J s - Planck constant
 
 from shutter_value_generator.make_shutter_value_file import MakeShuterValueFile
+from shutter_value_generator.make_shutter_value_file import RESONANCE_SHUTTER_VALUES
 
 
 def make_tmp_ascii_filename():
@@ -125,6 +126,11 @@ def test_create_shutter_value_for_resonance_mode():
 	o_make.run()
 
 	file_created_expected = Path(temp_dir) / "ShutterValues.txt"
+	with open(file_created_expected, 'r') as f:
+		file_contain_created = f.readline()
+
+	file_contain_expected = RESONANCE_SHUTTER_VALUES
+	assert file_contain_created == file_contain_expected
 
 
 

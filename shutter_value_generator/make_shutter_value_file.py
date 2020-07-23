@@ -4,6 +4,7 @@ from pathlib import Path
 
 DELTA_TIME_BETWEEN_FRAMES = 0.32e-6   # s
 CLOCK_CYCLE_FILE = 'clock_cycle.txt'
+SHUTTER_VALUE_FILENAME = "ShutterValues.txt"
 
 MN = 1.674927471e-27  #kg - neutron mass
 H = 6.62607004e-34 #J s - Planck constant
@@ -67,6 +68,9 @@ class MakeShuterValueFile:
 	def run(self, list_wavelength_requested=None):
 		if self.resonance_mode:
 			resonance_shutter_value_ascii = RESONANCE_SHUTTER_VALUES
+			filename = Path(self.output_folder) / SHUTTER_VALUE_FILENAME
+			MakeShuterValueFile.make_ascii_file_from_string(text=resonance_shutter_value_ascii,
+			                                                filename=filename)
 		else:
 			pass
 

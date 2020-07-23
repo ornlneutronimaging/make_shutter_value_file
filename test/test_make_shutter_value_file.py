@@ -1,7 +1,7 @@
-import os
 import numpy as np
 import pytest
-from tempfile import NamedTemporaryFile
+from pathlib import Path
+from tempfile import NamedTemporaryFile, gettempdir
 
 TOLERANCE = 1e-6
 MN = 1.674927471e-27  #kg - neutron mass
@@ -12,9 +12,9 @@ from shutter_value_generator.make_shutter_value_file import MakeShuterValueFile
 
 def make_tmp_ascii_filename():
 	ascii_filename = NamedTemporaryFile(prefix='TestingShutterValue', suffix='.txt').name
-	ascii_filename = os.path.abspath(ascii_filename)
-	if os.path.exists(ascii_filename):
-		os.remove(ascii_filename)
+	ascii_filename = Path(ascii_filename)
+	if Path(ascii_filename).exists():
+		Path.unlink(ascii_filename)
 	return ascii_filename
 
 def make_test_clock_array():
@@ -103,14 +103,28 @@ def test_calculate_min_tof_peak_value_from_edge_of_frame():
 		0]) \
 	       < 1e-3
 
-def test_file_correctly_created():
+@pytest.mark.parametrize('file_contain', [("entry1, entry2, entry3"),
+                                          "entry1, entry2, entry3\nentry4, entry5, entry6"])
+def test_make_ascii_file_from_string_single_entry(file_contain):
 	ascii_filename = make_tmp_ascii_filename()
-	file_contain = "entry1, entry2, entry3"
 	MakeShuterValueFile.make_ascii_file_from_string(text=file_contain,
 	                                                filename=ascii_filename)
 	with open(ascii_filename, 'r') as f:
 		file_created = f.readlines()
-	assert file_contain == file_created[0]
+
+	file_expected = file_contain.split("\n")
+	assert len(file_expected) == len(file_created)
+
+	for _line_expected, _line_created in zip(file_expected, file_created):
+		assert _line_created.strip() == _line_expected
+
+def test_create_shutter_value_for_resonance_mode():
+	temp_dir = gettempdir()
+	o_make = MakeShuterValueFile(output_folder=temp_dir,
+	                             resonance_mode=True)
+	o_make.run()
+
+	file_created_expected = Path(temp_dir) / "ShutterValues.txt"
 
 
 

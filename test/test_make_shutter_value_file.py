@@ -140,6 +140,28 @@ def test_create_shutter_value_for_resonance_mode():
 	file_contain_expected = RESONANCE_SHUTTER_VALUES
 	assert file_contain_created == file_contain_expected
 
+@pytest.mark.parametrize('list_wavelength_requested, epics_chopper_wavelength_range',
+                         [([1, 2, 3], [1, 5]),
+                          ([1, 10], [0.5, 8]),
+                          ([1, 10], [1, 11]),
+                          ([2, 10], [0.5, 10])])
+def test_lambda_outside_epics_chopper_range_raise_error(list_wavelength_requested, epics_chopper_wavelength_range):
+	detector_sample_distance = 1300
+	detector_offset = 6300
+	with pytest.raises(ValueError):
+		MakeShuterValueFile.realign_frames_with_tof_requested(list_wavelength_requested=list_wavelength_requested,
+		                                                      detector_sample_distance=detector_sample_distance,
+		                                                      detector_offset=detector_offset,
+		                                                      epics_chopper_wavelength_range=epics_chopper_wavelength_range)
 
-
-
+@pytest.mark.parametrize('list_wavelength_requested, epics_chopper_wavelength_range',
+                         [([10, 20], [9.8, 30]),
+                          ([12, 29.9], [9.8, 30])])
+def test_lambda_to_close_to_edge_of_epics_chopper_raise_error(list_wavelength_requested, epics_chopper_wavelength_range):
+	detector_sample_distance = 1300
+	detector_offset = 6300
+	with pytest.raises(ValueError):
+		MakeShuterValueFile.realign_frames_with_tof_requested(list_wavelength_requested=list_wavelength_requested,
+		                                                      detector_sample_distance=detector_sample_distance,
+		                                                      detector_offset=detector_offset,
+		                                                      epics_chopper_wavelength_range=epics_chopper_wavelength_range)

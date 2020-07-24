@@ -116,23 +116,37 @@ class MakeShuterValueFile:
 	        f.write(text)
 
 	@staticmethod
-	def realign_frames_with_tof_requestd(list_wavelength_requested=None, detector_offset=None,
-	                                     detector_sample_distance=None):
-		min_tof_peak_value_from_edge_of_frame = MakeShuterValueFile.convert_lambda_to_tof(
-				list_wavelength=MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME,
-				detector_sample_distance=detector_sample_distance,
-				detector_offset=detector_offset)
+	def realign_frames_with_tof_requested(list_wavelength_requested=None,
+	                                      detector_offset=None,
+	                                      detector_sample_distance=None,
+	                                      epics_chopper_wavelength_range=None):
+
+		for _wavelength_requested in list_wavelength_requested:
+			if ((_wavelength_requested - MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME) < epics_chopper_wavelength_range[
+				0]) or ((_wavelength_requested + MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME) > \
+					epics_chopper_wavelength_range[1]):
+				raise ValueError(
+					"One or more of the wavelength you defined won't allow to fully measure the Bragg Edge!")
 
 		list_tof_requested = MakeShuterValueFile.convert_lambda_to_tof(list_wavelength=list_wavelength_requested,
 		                                                               detector_sample_distance=detector_sample_distance,
 		                                                               detector_offset=detector_offset)
+		list_tof_requested.sort()
+		epics_tof_range = MakeShuterValueFile.convert_lambda_to_tof(list_wavelength=epics_chopper_wavelength_range,
+		                                                            detector_offset=detector_offset,
+		                                                            detector_sample_distance=detector_sample_distance)
+		epics_tof_range.sort()
 
-		# tof_frame_realign = TOF_FRAMES
-		# for _tof in list_tof_requested:
-		# 	for tof_frame in TOF_FRAMES:
-		# 		if _tof < tof_frame[0]:
-		#
+		if (list_tof_requested[0] <= epics_tof_range[0]) or (list_tof_requested[-1] >= epics_tof_range[-1]):
+			raise ValueError("One or more of the wavelength you defined is outside the range defined by the choppers!")
 
+		min_tof_peak_value_from_edge_of_frame = MakeShuterValueFile.convert_lambda_to_tof(
+				list_wavelength=[MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME],
+				detector_sample_distance=detector_sample_distance,
+				detector_offset=detector_offset)
 
-
+		raw_list_of_tof_ranges_requested = []
+		for _tof in list_tof_requested:
+			raw_list_of_tof_ranges_requested.append([_tof - min_tof_peak_value_from_edge_of_frame[0],
+			                                         _tof + min_tof_peak_value_from_edge_of_frame[0]])
 

@@ -1,6 +1,8 @@
 import argparse
+import numpy as np
 import pandas as pd
 from pathlib import Path
+from collections import OrderedDict
 
 DELTA_TIME_BETWEEN_FRAMES = 0.32e-6   # s
 CLOCK_CYCLE_FILE = 'clock_cycle.txt'
@@ -15,6 +17,7 @@ TOF_FRAMES = [[1e-6, 2.5e-3],
 MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME = 0.3  # Angstroms
 
 RESONANCE_SHUTTER_VALUES = "1e-6\t320e-6\t3\t0.16"
+DEFAULT_SHUTTER_VALUES = "1e-6\t2.5e-3\t5\t10.24\n2.9e-3\t5.8e-3\t6\t10.24\n6.2e-3\t15.9e-3\t7\t10.24"
 
 # parser = argparse.ArgumentParser(description="Generate ShutterValue.txt file used by the MCP detector")
 # parser.add_argument('--output', default='./', help='output folder where the ShutterValue.txt file will be created')
@@ -36,6 +39,7 @@ class MakeShuterValueFile:
 	             detector_sample_distance=None,
 	             detector_offset=None,
 	             resonance_mode=False,
+	             default_values=False,
 	             epics_chopper_wavelength_range=None):
 		"""
 		:param output_folder:
@@ -46,7 +50,7 @@ class MakeShuterValueFile:
 		if output_folder is None:
 			raise AttributeError("Output folder needs to be an existing output folder!")
 
-		if resonance_mode:
+		if resonance_mode or default_values:
 			pass
 		else:
 			if detector_sample_distance is None:
@@ -67,6 +71,7 @@ class MakeShuterValueFile:
 					detector_sample_distance=self.detector_sample_distance)
 
 		self.resonance_mode = resonance_mode
+		self.default_values = default_values
 		self.output_folder = output_folder
 		self.detector_sample_distance = detector_sample_distance
 		self.detector_offset = detector_offset
@@ -78,8 +83,14 @@ class MakeShuterValueFile:
 			resonance_shutter_value_ascii = RESONANCE_SHUTTER_VALUES
 			MakeShuterValueFile.make_ascii_file_from_string(text=resonance_shutter_value_ascii,
 			                                                filename=filename)
+		elif self.default_values:
+			default_shutter_value_ascii = DEFAULT_SHUTTER_VALUES
+			MakeShuterValueFile.make_ascii_file_from_string(text=default_shutter_value_ascii,
+			                                                filename=filename)
 		else:
-			pass
+			MakeShuterValueFile.check_overlap_wavelength_requested_with_chopper_settings(
+					list_wavelength_requested=list_wavelength_requested,
+					epics_chopper_wavelength_range=self.epics_chopper_wavelength_range)
 
 	@staticmethod
 	def get_clock_cycle_table():
@@ -116,37 +127,79 @@ class MakeShuterValueFile:
 	        f.write(text)
 
 	@staticmethod
-	def realign_frames_with_tof_requested(list_wavelength_requested=None,
-	                                      detector_offset=None,
-	                                      detector_sample_distance=None,
-	                                      epics_chopper_wavelength_range=None):
-
+	def check_overlap_wavelength_requested_with_chopper_settings(list_wavelength_requested=None,
+	                                                             epics_chopper_wavelength_range=None):
 		for _wavelength_requested in list_wavelength_requested:
 			if ((_wavelength_requested - MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME) < epics_chopper_wavelength_range[
-				0]) or ((_wavelength_requested + MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME) > \
+				0]) or ((_wavelength_requested + MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME) >
 					epics_chopper_wavelength_range[1]):
 				raise ValueError(
 					"One or more of the wavelength you defined won't allow to fully measure the Bragg Edge!")
 
-		list_tof_requested = MakeShuterValueFile.convert_lambda_to_tof(list_wavelength=list_wavelength_requested,
-		                                                               detector_sample_distance=detector_sample_distance,
-		                                                               detector_offset=detector_offset)
-		list_tof_requested.sort()
-		epics_tof_range = MakeShuterValueFile.convert_lambda_to_tof(list_wavelength=epics_chopper_wavelength_range,
-		                                                            detector_offset=detector_offset,
-		                                                            detector_sample_distance=detector_sample_distance)
-		epics_tof_range.sort()
+	@staticmethod
+	def initialize_list_of_wavelength_requested_dictionary(list_wavelength_requested=None):
+		dict_list_wavelength_requested = OrderedDict()
+		for _wave in list_wavelength_requested:
+			dict_list_wavelength_requested[_wave] = [_wave - MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME,
+			                                         _wave + MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME]
+		return dict_list_wavelength_requested
 
-		if (list_tof_requested[0] <= epics_tof_range[0]) or (list_tof_requested[-1] >= epics_tof_range[-1]):
-			raise ValueError("One or more of the wavelength you defined is outside the range defined by the choppers!")
+	@staticmethod
+	def combine_wavelength_requested_too_close_to_each_other(dict_list_wavelength_requested=None):
+		list_wavelength_requested = dict_list_wavelength_requested.keys()
+		if len(list_wavelength_requested) == 1:
+			return
 
-		min_tof_peak_value_from_edge_of_frame = MakeShuterValueFile.convert_lambda_to_tof(
-				list_wavelength=[MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME],
-				detector_sample_distance=detector_sample_distance,
-				detector_offset=detector_offset)
 
-		raw_list_of_tof_ranges_requested = []
-		for _tof in list_tof_requested:
-			raw_list_of_tof_ranges_requested.append([_tof - min_tof_peak_value_from_edge_of_frame[0],
-			                                         _tof + min_tof_peak_value_from_edge_of_frame[0]])
+
+
+
+
+
+
+
+	# @staticmethod
+	# def merge_wavelength_requested_if_within_min_lambda_value_threshold(list_wavelength_requested=None):
+	# 	if len(list_wavelength_requested == 1):
+	# 		return
+	# 	list_wavelength_requested = np.array(list_wavelength_requested)
+	# 	delta_list_wavelength_requested = list_wavelength_requested[1:-1] - list_wavelength_requested[0:-2]
+	# 	delta_list_wavelength_requested_below_threshold = np.where(delta_list_wavelength_requested < MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME)
+	#
+	# 	# none of the wavelength requested overlap
+	# 	if delta_list_wavelength_requested_below_threshold[0].size == 0:
+	# 		return
+	#
+	# 	first_overlap = delta_list_wavelength_requested_below_threshold[0][0]
+	# 	list_wavelength_requested = list(list_wavelength_requested)
+	# 	list_wavelength_requested[first_overlap] = np.mean([list_wavelength_requested[first_overlap],
+	# 	                                                    list_wavelength_requested[first_overlap+1]])
+	# 	list_wavelength_requested.pop(first_overlap+1)
+	# 	MakeShuterValueFile.merge_wavelength_requested_if_within_min_lambda_value_threshold(
+	# 			list_wavelength_requested=list_wavelength_requested)
+
+
+
+	# list_tof_requested = MakeShuterValueFile.convert_lambda_to_tof(list_wavelength=list_wavelength_requested,
+		#                                                                detector_sample_distance=detector_sample_distance,
+		#                                                                detector_offset=detector_offset)
+		# list_tof_requested.sort()
+		# epics_tof_range = MakeShuterValueFile.convert_lambda_to_tof(list_wavelength=epics_chopper_wavelength_range,
+		#                                                             detector_offset=detector_offset,
+		#                                                             detector_sample_distance=detector_sample_distance)
+		# epics_tof_range.sort()
+		#
+		# if (list_tof_requested[0] <= epics_tof_range[0]) or (list_tof_requested[-1] >= epics_tof_range[-1]):
+		# 	raise ValueError("One or more of the wavelength you defined is outside the range defined by the choppers!")
+		#
+		# min_tof_peak_value_from_edge_of_frame = MakeShuterValueFile.convert_lambda_to_tof(
+		# 		list_wavelength=[MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME],
+		# 		detector_sample_distance=detector_sample_distance,
+		# 		detector_offset=detector_offset)
+		#
+		# raw_list_of_tof_ranges_requested = []
+		# for _tof in list_tof_requested:
+		# 	raw_list_of_tof_ranges_requested.append([_tof - min_tof_peak_value_from_edge_of_frame[0],
+		# 	                                         _tof + min_tof_peak_value_from_edge_of_frame[0]])
+
 

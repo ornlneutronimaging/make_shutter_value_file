@@ -2,6 +2,8 @@ import numpy as np
 import pytest
 from pathlib import Path
 from tempfile import NamedTemporaryFile, gettempdir
+from collections import OrderedDict
+import copy
 
 TOLERANCE = 1e-6
 MN = 1.674927471e-27  #kg - neutron mass
@@ -9,6 +11,8 @@ H = 6.62607004e-34 #J s - Planck constant
 
 from shutter_value_generator.make_shutter_value_file import MakeShuterValueFile
 from shutter_value_generator.make_shutter_value_file import RESONANCE_SHUTTER_VALUES
+from shutter_value_generator.make_shutter_value_file import DEFAULT_SHUTTER_VALUES
+from shutter_value_generator.make_shutter_value_file import MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME
 
 
 def make_tmp_ascii_filename():
@@ -141,27 +145,76 @@ def test_create_shutter_value_for_resonance_mode():
 	assert file_contain_created == file_contain_expected
 
 @pytest.mark.parametrize('list_wavelength_requested, epics_chopper_wavelength_range',
-                         [([1, 2, 3], [1, 5]),
-                          ([1, 10], [0.5, 8]),
-                          ([1, 10], [1, 11]),
-                          ([2, 10], [0.5, 10])])
-def test_lambda_outside_epics_chopper_range_raise_error(list_wavelength_requested, epics_chopper_wavelength_range):
-	detector_sample_distance = 1300
-	detector_offset = 6300
-	with pytest.raises(ValueError):
-		MakeShuterValueFile.realign_frames_with_tof_requested(list_wavelength_requested=list_wavelength_requested,
-		                                                      detector_sample_distance=detector_sample_distance,
-		                                                      detector_offset=detector_offset,
-		                                                      epics_chopper_wavelength_range=epics_chopper_wavelength_range)
-
-@pytest.mark.parametrize('list_wavelength_requested, epics_chopper_wavelength_range',
                          [([10, 20], [9.8, 30]),
                           ([12, 29.9], [9.8, 30])])
 def test_lambda_to_close_to_edge_of_epics_chopper_raise_error(list_wavelength_requested, epics_chopper_wavelength_range):
-	detector_sample_distance = 1300
-	detector_offset = 6300
 	with pytest.raises(ValueError):
-		MakeShuterValueFile.realign_frames_with_tof_requested(list_wavelength_requested=list_wavelength_requested,
-		                                                      detector_sample_distance=detector_sample_distance,
-		                                                      detector_offset=detector_offset,
-		                                                      epics_chopper_wavelength_range=epics_chopper_wavelength_range)
+		MakeShuterValueFile.check_overlap_wavelength_requested_with_chopper_settings(list_wavelength_requested=list_wavelength_requested,
+								                                                     epics_chopper_wavelength_range=epics_chopper_wavelength_range)
+
+def test_initialize_dictionary_of_list_of_wavelength_requested():
+	list_of_wavelength_requested = [1, 2, 5, 10, 20]
+	dict_list_wavelength_requested = MakeShuterValueFile.initialize_list_of_wavelength_requested_dictionary(
+			list_wavelength_requested=list_of_wavelength_requested)
+	dict_list_wavelength_expected = OrderedDict()
+	dict_list_wavelength_expected[1] = [1 - MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME,
+	                                    1 + MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME]
+
+	assert dict_list_wavelength_requested[1] == dict_list_wavelength_expected[1]
+
+def test_combine_wavelength_requested_too_close_to_each_other():
+	list_wavelength_requested = [5]
+	dict_list_wavelength_requested = MakeShuterValueFile.initialize_list_of_wavelength_requested_dictionary(
+			list_wavelength_requested=list_wavelength_requested)
+	before_cleaning = copy.deepcopy(dict_list_wavelength_requested)
+	MakeShuterValueFile.combine_wavelength_requested_too_close_to_each_other(
+			dict_list_wavelength_requested=dict_list_wavelength_requested)
+	assert dict_list_wavelength_requested == before_cleaning
+
+	list_wavelength_requested = [5, 6]
+	dict_list_wavelength_requested = MakeShuterValueFile.initialize_list_of_wavelength_requested_dictionary(
+			list_wavelength_requested=list_wavelength_requested)
+	before_cleaning = copy.deepcopy(dict_list_wavelength_requested)
+	MakeShuterValueFile.combine_wavelength_requested_too_close_to_each_other(
+			dict_list_wavelength_requested=dict_list_wavelength_requested)
+	assert dict_list_wavelength_requested == before_cleaning
+
+	list_wavelength_requested = [5, 5.1, 6]
+	dict_list_wavelength_requested = MakeShuterValueFile.initialize_list_of_wavelength_requested_dictionary(
+			list_wavelength_requested=list_wavelength_requested)
+	before_cleaning = copy.deepcopy(dict_list_wavelength_requested)
+	MakeShuterValueFile.combine_wavelength_requested_too_close_to_each_other(
+			dict_list_wavelength_requested=dict_list_wavelength_requested)
+	assert dict_list_wavelength_requested == before_cleaning
+
+
+
+def test_create_default_shutter_value_file_when_no_lambda_provided():
+	temp_dir = gettempdir()
+	o_make = MakeShuterValueFile(output_folder=temp_dir,
+	                             default_values=True)
+	o_make.run()
+
+	file_created_expected = Path(temp_dir) / "ShutterValues.txt"
+	with open(file_created_expected, 'r') as f:
+		file_contain_created = f.readlines()
+	file_contain_created = "".join(file_contain_created)
+
+	file_contain_expected = DEFAULT_SHUTTER_VALUES
+	assert file_contain_created == file_contain_expected
+
+# @pytest.mark.parametrize('list_wavelength_requested, epics_chopper_wavelength_range',
+#                          [([1, 2, 3], [1, 5]),
+#                           ([1, 10], [0.5, 8]),
+#                           ([1, 10], [1, 11]),
+#                           ([2, 10], [0.5, 10])])
+# def test_lambda_outside_epics_chopper_range_raise_error(list_wavelength_requested,
+#                                                         epics_chopper_wavelength_range):
+# 	detector_sample_distance = 1300
+# 	detector_offset = 6300
+# 	with pytest.raises(ValueError):
+# 		MakeShuterValueFile.realign_frames_with_tof_requested(
+# 			list_wavelength_requested=list_wavelength_requested,
+# 			detector_sample_distance=detector_sample_distance,
+# 			detector_offset=detector_offset,
+# 			epics_chopper_wavelength_range=epics_chopper_wavelength_range)

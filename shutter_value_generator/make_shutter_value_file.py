@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 from collections import OrderedDict
+import copy
 
 DELTA_TIME_BETWEEN_FRAMES = 0.32e-6   # s
 CLOCK_CYCLE_FILE = 'clock_cycle.txt'
@@ -146,17 +147,112 @@ class MakeShuterValueFile:
 
 	@staticmethod
 	def combine_wavelength_requested_too_close_to_each_other(dict_list_wavelength_requested=None):
-		list_wavelength_requested = dict_list_wavelength_requested.keys()
+		"""
+		This method clean up the dict_list_wavelength_requested dictionary by merging lambda requested
+		that are close to each other (less then MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME). The final lambda
+		requested will be the average value of those lambda and the left and right lambda range will be the extreme
+		values
+
+		ex: {5: [5-0.3, 5+0.3], 5.1: [5.1-0.3, 5.1+0.3]}
+		will produce
+		{5.05: [5-0.3, 5.1+0.3]}
+
+		:param dict_list_wavelength_requested:
+		:return: dictionary of the merged wavelength
+		"""
+		_dict_list_wavelength_requested = copy.deepcopy(dict_list_wavelength_requested)
+
+		list_wavelength_requested = list(_dict_list_wavelength_requested.keys())
 		if len(list_wavelength_requested) == 1:
-			return
+			return _dict_list_wavelength_requested
+
+		dict_clean_list_wavelength_requested = OrderedDict()
+		while len(_dict_list_wavelength_requested.keys()) > 1:
+
+			list_keys = list(_dict_list_wavelength_requested.keys())[:2]
+			list_keys.sort()
+			first_wavelength, second_wavelength = list_keys
+
+			first_wavelength_right_range = _dict_list_wavelength_requested[first_wavelength][1]
+			second_wavelength_left_range = _dict_list_wavelength_requested[second_wavelength][0]
+
+			if second_wavelength_left_range - first_wavelength_right_range  <= 0:
+				# they are too close to each other, we need to merge them
+
+				new_merge_key = np.mean([first_wavelength, second_wavelength])
+				new_merge_left_range = _dict_list_wavelength_requested[first_wavelength][0]
+				new_merge_right_range = _dict_list_wavelength_requested[second_wavelength][1]
+
+				del _dict_list_wavelength_requested[first_wavelength]
+				del _dict_list_wavelength_requested[second_wavelength]
+				_dict_list_wavelength_requested[new_merge_key] = [new_merge_left_range, new_merge_right_range]
+				_dict_list_wavelength_requested = MakeShuterValueFile.sort_dictionary_by_keys(dictionary=_dict_list_wavelength_requested)
+
+			else:
+
+				dict_clean_list_wavelength_requested[first_wavelength] = copy.deepcopy(_dict_list_wavelength_requested[
+					first_wavelength])
+				del _dict_list_wavelength_requested[first_wavelength]
+
+		last_key = list(_dict_list_wavelength_requested.keys())[0]
+		dict_clean_list_wavelength_requested[last_key] = copy.deepcopy((_dict_list_wavelength_requested[last_key]))
+
+		return dict_clean_list_wavelength_requested
 
 
+		# _index = 0
+		# while _index <= (len(list_wavelength_requested) - 2):
+		#
+		# 	print(f"_index: {_index}")
+		# 	print(f"dict_list_wavlength_requested: {list_wavelength_requested}")
+		#
+		# 	_reference_key = list_wavelength_requested[_index]
+		# 	_target_key = list_wavelength_requested[_index+1]
+		#
+		# 	if not (_reference_key in list_wavelength_requested):
+		# 		continue
+		#
+		# 	if not (_target_key in list_wavelength_requested):
+		# 		continue
+		#
+		# 	right_reference_range = dict_list_wavelength_requested[_reference_key][1]
+		# 	left_target_range = dict_list_wavelength_requested[_target_key][0]
+		#
+		# 	if left_target_range - right_reference_range < MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME:
+		# 		# merge them
+		# 		mean_key = np.mean([_reference_key, _target_key])
+		# 		dict_list_wavelength_requested[mean_key] = [dict_list_wavelength_requested[_reference_key][0],
+		# 		                                            dict_list_wavelength_requested[_target_key][1]]
+		# 		del dict_list_wavelength_requested[_reference_key]
+		# 		del dict_list_wavelength_requested[_target_key]
+		#
+		# 		dict_list_wavelength_requested = MakeShuterValueFile.sort_dictionary_by_keys(
+		# 				dictionary=dict_list_wavelength_requested)
+		#
+		# 		MakeShuterValueFile.combine_wavelength_requested_too_close_to_each_other(dict_list_wavelength_requested=
+		# 		                                                                         dict_list_wavelength_requested)
+		# 		return
+		# 	else:
+		# 		# we can keep the reference_key
+		# 		pass
+		# 	_index += 1
 
+	@staticmethod
+	def sort_dictionary_by_keys(dictionary=None):
+		"""
+		sort the dictionary by keys to make sure they are in increasing order
 
+		:param dictionary:
+		:return:
+		"""
+		new_dictionary = OrderedDict()
+		list_key = list(dictionary.keys())
+		list_key.sort()
 
+		for _key in list_key:
+			new_dictionary[_key] = dictionary[_key]
 
-
-
+		return new_dictionary
 
 	# @staticmethod
 	# def merge_wavelength_requested_if_within_min_lambda_value_threshold(list_wavelength_requested=None):

@@ -5,7 +5,7 @@ from tempfile import NamedTemporaryFile, gettempdir
 from collections import OrderedDict
 import copy
 
-TOLERANCE = 1e-6
+TOLERANCE = 1e-3
 MN = 1.674927471e-27  #kg - neutron mass
 H = 6.62607004e-34 #J s - Planck constant
 
@@ -114,7 +114,7 @@ def test_calculate_min_tof_peak_value_from_edge_of_frame():
 	min_tof_peak_value_from_edge_of_frame_expected = 985.8442871587462
 	assert np.abs(min_tof_peak_value_from_edge_of_frame_expected - min_tof_peak_value_from_edge_of_frame_calculated[
 		0]) \
-	       < 1e-3
+	       < TOLERANCE
 
 @pytest.mark.parametrize('file_contain', [("entry1, entry2, entry3"),
                                           "entry1, entry2, entry3\nentry4, entry5, entry6"])
@@ -163,31 +163,67 @@ def test_initialize_dictionary_of_list_of_wavelength_requested():
 	assert dict_list_wavelength_requested[1] == dict_list_wavelength_expected[1]
 
 def test_combine_wavelength_requested_too_close_to_each_other():
+	# case 1
 	list_wavelength_requested = [5]
 	dict_list_wavelength_requested = MakeShuterValueFile.initialize_list_of_wavelength_requested_dictionary(
 			list_wavelength_requested=list_wavelength_requested)
 	before_cleaning = copy.deepcopy(dict_list_wavelength_requested)
-	MakeShuterValueFile.combine_wavelength_requested_too_close_to_each_other(
+	dict_list_wavelength_returned = MakeShuterValueFile.combine_wavelength_requested_too_close_to_each_other(
 			dict_list_wavelength_requested=dict_list_wavelength_requested)
-	assert dict_list_wavelength_requested == before_cleaning
+	assert dict_list_wavelength_returned == before_cleaning
 
+	# case 2
 	list_wavelength_requested = [5, 6]
 	dict_list_wavelength_requested = MakeShuterValueFile.initialize_list_of_wavelength_requested_dictionary(
 			list_wavelength_requested=list_wavelength_requested)
-	before_cleaning = copy.deepcopy(dict_list_wavelength_requested)
-	MakeShuterValueFile.combine_wavelength_requested_too_close_to_each_other(
+	dict_list_wavelength_returned = MakeShuterValueFile.combine_wavelength_requested_too_close_to_each_other(
 			dict_list_wavelength_requested=dict_list_wavelength_requested)
-	assert dict_list_wavelength_requested == before_cleaning
+	assert dict_list_wavelength_requested == dict_list_wavelength_returned
 
+	# case 3
 	list_wavelength_requested = [5, 5.1, 6]
 	dict_list_wavelength_requested = MakeShuterValueFile.initialize_list_of_wavelength_requested_dictionary(
 			list_wavelength_requested=list_wavelength_requested)
-	before_cleaning = copy.deepcopy(dict_list_wavelength_requested)
-	MakeShuterValueFile.combine_wavelength_requested_too_close_to_each_other(
+	dict_list_wavelength_returned = MakeShuterValueFile.combine_wavelength_requested_too_close_to_each_other(
 			dict_list_wavelength_requested=dict_list_wavelength_requested)
-	assert dict_list_wavelength_requested == before_cleaning
+	dict_list_wavelength_expected = OrderedDict()
+	dict_list_wavelength_expected[5.05] = [5 - MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME,
+	                                       5.1 + MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME]
+	dict_list_wavelength_expected[6] = [6 - MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME,
+	                                    6 + MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME]
+	assert dict_list_wavelength_returned.keys() == dict_list_wavelength_expected.keys()
+	for _key in dict_list_wavelength_expected.keys():
+		_array_expected = dict_list_wavelength_expected[_key]
+		_array_returned = dict_list_wavelength_returned[_key]
+		for _exp, _ret in zip(_array_expected, _array_returned):
+			assert np.abs(_exp - _ret) < TOLERANCE
 
+	# case 4
+	list_wavelength_requested = [5, 5.1, 5.2, 6]
+	dict_list_wavelength_requested = MakeShuterValueFile.initialize_list_of_wavelength_requested_dictionary(
+			list_wavelength_requested=list_wavelength_requested)
+	dict_list_wavelength_returned = MakeShuterValueFile.combine_wavelength_requested_too_close_to_each_other(
+			dict_list_wavelength_requested=dict_list_wavelength_requested)
+	dict_list_wavelength_expected = OrderedDict()
+	dict_list_wavelength_expected[5.125] = [5 - MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME,
+	                                        5.2 + MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME]
+	dict_list_wavelength_expected[6] = [6 - MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME,
+	                                    6 + MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME]
+	assert dict_list_wavelength_returned.keys() == dict_list_wavelength_expected.keys()
+	for _key in dict_list_wavelength_expected.keys():
+		_array_expected = dict_list_wavelength_expected[_key]
+		_array_returned = dict_list_wavelength_returned[_key]
+		for _exp, _ret in zip(_array_expected, _array_returned):
+			assert np.abs(_exp - _ret) < TOLERANCE
 
+def test_sort_dictionary_by_keys():
+	dict1 = OrderedDict()
+	dict1[1] = [10, 20]
+	dict1[2] = [30, 40]
+	dict1[0.5] = [50, 60]
+
+	new_dict = MakeShuterValueFile.sort_dictionary_by_keys(dictionary=dict1)
+	assert [0.5, 1, 2] == list(new_dict.keys())
 
 def test_create_default_shutter_value_file_when_no_lambda_provided():
 	temp_dir = gettempdir()

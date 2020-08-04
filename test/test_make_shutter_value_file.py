@@ -114,6 +114,15 @@ def test_convert_lambda_to_tof():
 	list_tof_expected = [_tof * 1e-6 for _tof in list_tof_expected]
 	assert list_tof == list_tof_expected
 
+def test_convert_tof_to_lambda():
+	detector_offset = 5000  # micros
+	detector_sample_distance = 1300  # cm
+	tof = 5     # micros
+	lambda_returned = MakeShuterValueFile.convert_tof_to_lambda(tof=tof,
+	                                                            detector_offset=detector_offset,
+	                                                            detector_sample_distance=detector_sample_distance)
+	lambda_expected = 1.520017
+	assert np.abs(lambda_expected - lambda_returned) < TOLERANCE
 
 def test_calculate_min_tof_peak_value_from_edge_of_frame():
 	output_folder = "/tmp/"
@@ -267,9 +276,27 @@ def test_convert_lambda_dict_to_tof():
 			list_wavelength_requested=list_wavelength_requested)
 	dict_clean_list_wavelength_requested = MakeShuterValueFile.combine_wavelength_requested_too_close_to_each_other(
 			dict_list_wavelength_requested=dict_list_wavelength)
-	dict_list_tof = o_make.convert_lambda_dict_to_tof(dict_list_lambda_requested=dict_clean_list_wavelength_requested)
-	print(dict_list_tof)
-	# assert False
+	dict_list_tof = o_make.convert_lambda_dict_to_tof(dict_list_lambda_requested=dict_clean_list_wavelength_requested,
+	                                                  output_units='s')
+	dict_list_tof_expected = OrderedDict()
+	for _lambda in dict_clean_list_wavelength_requested.keys():
+		_tof = MakeShuterValueFile.convert_lambda_to_tof(list_wavelength=[_lambda],
+		                                                 detector_offset=detector_offset,
+		                                                 detector_sample_distance=detector_sample_distance,
+		                                                 output_units='s')
+		_range = MakeShuterValueFile.convert_lambda_to_tof(list_wavelength=dict_clean_list_wavelength_requested[
+			_lambda],
+		                                                   detector_offset=detector_offset,
+		                                                   detector_sample_distance=detector_sample_distance,
+		                                                   output_units='s')
+		dict_list_tof_expected[_tof[0]] = _range
+
+	assert dict_list_tof_expected.keys() == dict_list_tof.keys()
+	for _key in dict_list_tof_expected.keys():
+		list_tof_expected = dict_list_tof_expected[_key]
+		list_tof_returned = dict_list_tof[_key]
+		assert np.abs(list_tof_expected[0] - list_tof_returned[0]) < TOLERANCE
+		assert np.abs(list_tof_expected[1] - list_tof_returned[1]) < TOLERANCE
 
 def test_set_tof_frames_to_cover_lambda_requested():
 	output_folder = "/tmp/"

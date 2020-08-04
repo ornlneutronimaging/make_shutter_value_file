@@ -99,17 +99,34 @@ class MakeShuterValueFile:
 			self.set_final_tof_frames(
 					dict_list_lambda_requested=dict_clean_list_wavelength_requested)
 
-	def convert_lambda_dict_to_tof(self, dict_list_lambda_requested=None):
+	def convert_lambda_dict_to_tof(self, dict_list_lambda_requested=None, output_units='micros'):
 		dict_list_tof_requested = OrderedDict()
 		for _lambda in dict_list_lambda_requested.keys():
 			_tof = MakeShuterValueFile.convert_lambda_to_tof(list_wavelength=[_lambda],
 			                                                 detector_offset=self.detector_offset,
-			                                                 detector_sample_distance=self.detector_sample_distance)
+			                                                 detector_sample_distance=self.detector_sample_distance,
+			                                                 output_units=output_units)
 			_tof_range = MakeShuterValueFile.convert_lambda_to_tof(list_wavelength=dict_list_lambda_requested[_lambda],
 			                                                       detector_offset=self.detector_offset,
-			                                                       detector_sample_distance=self.detector_sample_distance)
+			                                                       detector_sample_distance=self.detector_sample_distance,
+			                                                       output_units=output_units)
 			dict_list_tof_requested[_tof[0]] = _tof_range
 		return dict_list_tof_requested
+
+	@staticmethod
+	def convert_tof_to_lambda(tof=None,
+	                          detector_offset=None,
+	                          detector_sample_distance=None):
+		"""
+
+		:param tof: in micros
+		:param detector_offset: micros
+		:param detector_sample_distance: in cm
+		:return:
+		lambda in Angstroms
+		"""
+		coeff = 0.3956
+		return (detector_offset - tof) * coeff / detector_sample_distance
 
 	@staticmethod
 	def get_clock_cycle_table():
@@ -198,7 +215,7 @@ class MakeShuterValueFile:
 			first_wavelength_right_range = _dict_list_wavelength_requested[first_wavelength][1]
 			second_wavelength_left_range = _dict_list_wavelength_requested[second_wavelength][0]
 
-			if second_wavelength_left_range - first_wavelength_right_range  <= 0:
+			if second_wavelength_left_range - first_wavelength_right_range <= 0:
 				# they are too close to each other, we need to merge them
 
 				new_merge_key = np.mean([first_wavelength, second_wavelength])
@@ -243,5 +260,14 @@ class MakeShuterValueFile:
 			raise ValueError("Empty dict list lambda requested")
 
 		dict_list_tof_requested = self.convert_lambda_dict_to_tof(dict_list_lambda_requested=dict_list_lambda_requested)
+		final_tof_frames = copy.deepcopy(TOF_FRAMES)
 
+		# for _tof_requested in dict_list_tof_requested.keys():
+		# 	_left_tof, _right_tof = dict_list_tof_requested[_tof_requested]
+		# 	for _final_tof in final_tof_frames:
+		# 		_left_final_tof, _right_final_tof = _final_tof
+		# 		if (_left_tof > _left_final_tof) and (_right_tof < _right_tof):
+		# 			continue
+		# 		elif (_left_tof < _left_final_tof):
+		# 			# if not first range, we need to merge with previous range and cut just after this value
 

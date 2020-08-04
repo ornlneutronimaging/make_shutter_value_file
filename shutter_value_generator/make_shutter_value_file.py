@@ -96,6 +96,20 @@ class MakeShuterValueFile:
 					list_wavelength_requested=list_wavelength_requested)
 			dict_clean_list_wavelength_requested = MakeShuterValueFile.combine_wavelength_requested_too_close_to_each_other(
 					dict_list_wavelength_requested=dict_list_wavelength_requested)
+			self.set_final_tof_frames(
+					dict_list_lambda_requested=dict_clean_list_wavelength_requested)
+
+	def convert_lambda_dict_to_tof(self, dict_list_lambda_requested=None):
+		dict_list_tof_requested = OrderedDict()
+		for _lambda in dict_list_lambda_requested.keys():
+			_tof = MakeShuterValueFile.convert_lambda_to_tof(list_wavelength=[_lambda],
+			                                                 detector_offset=self.detector_offset,
+			                                                 detector_sample_distance=self.detector_sample_distance)
+			_tof_range = MakeShuterValueFile.convert_lambda_to_tof(list_wavelength=dict_list_lambda_requested[_lambda],
+			                                                       detector_offset=self.detector_offset,
+			                                                       detector_sample_distance=self.detector_sample_distance)
+			dict_list_tof_requested[_tof[0]] = _tof_range
+		return dict_list_tof_requested
 
 	@staticmethod
 	def get_clock_cycle_table():
@@ -220,7 +234,10 @@ class MakeShuterValueFile:
 
 		return new_dictionary
 
-	@staticmethod
-	def set_final_tof_frames(dict_list_lambda_requested=None):
+	def set_final_tof_frames(self, dict_list_lambda_requested=None):
 		if dict_list_lambda_requested is None:
 			raise ValueError("Empty dict list lambda requested")
+
+		dict_list_tof_requested = self.convert_lambda_dict_to_tof(dict_list_lambda_requested=dict_list_lambda_requested)
+
+

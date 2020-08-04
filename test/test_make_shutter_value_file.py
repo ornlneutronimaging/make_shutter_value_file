@@ -239,8 +239,25 @@ def test_create_default_shutter_value_file_when_no_lambda_provided():
 	file_contain_expected = DEFAULT_SHUTTER_VALUES
 	assert file_contain_created == file_contain_expected
 
+def teset_convert_lambda_dict_to_tof():
+	output_folder = "/tmp/"
+	detector_offset = 6000  # micros
+	detector_sample_distance = 1300   # cm
+	epics_chopper_wavelength_range = [2, 10]  # Angstroms
+	o_make = MakeShuterValueFile(detector_offset=detector_offset,
+	                             output_folder=output_folder,
+	                             detector_sample_distance=detector_sample_distance,
+	                             epics_chopper_wavelength_range=epics_chopper_wavelength_range)
+	list_wavelength_requested = [3, 5, 8]
+	dict_list_wavelength = MakeShuterValueFile.initialize_list_of_wavelength_requested_dictionary(
+			list_wavelength_requested=list_wavelength_requested)
+	dict_clean_list_wavelength_requested = MakeShuterValueFile.combine_wavelength_requested_too_close_to_each_other(
+			dict_list_wavelength_requested=dict_list_wavelength)
+	dict_list_tof = o_make.convert_lambda_dict_to_tof(dict_list_lambda_requested=dict_clean_list_wavelength_requested)
+	print(dict_list_tof)
+	assert False
+
 def test_set_tof_frames_to_cover_lambda_requested():
-	list_wavelength_requested = [3]
 	output_folder = "/tmp/"
 	detector_offset = 0  # micros
 	detector_sample_distance = 1300   # cm
@@ -253,6 +270,11 @@ def test_set_tof_frames_to_cover_lambda_requested():
 	# test error raised if no dict passed
 	with pytest.raises(ValueError):
 		o_make.set_final_tof_frames()
+
+	# test 1 wavelength within the first range does not change the default TOF frame
+	list_wavelength_requested = [3]
+	o_make.run(list_wavelength_requested=list_wavelength_requested)
+
 
 # @pytest.mark.parametrize('list_wavelength_requested, epics_chopper_wavelength_range',
 #                          [([1, 2, 3], [1, 5]),

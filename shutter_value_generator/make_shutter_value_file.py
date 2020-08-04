@@ -124,19 +124,23 @@ class MakeShuterValueFile:
 	@staticmethod
 	def convert_lambda_to_tof(list_wavelength=None,
 	                          detector_offset=None,
-	                          detector_sample_distance=None):
+	                          detector_sample_distance=None,
+	                          output_units='micros'):
 		"""
 		convert the list of lambda (wavelength) into TOF(micros) units
 
 		:param list_wavelength: in units of Angstroms
 		:param detector_offset: in micros
 		:param detector_sample_distance: in cm
+		:param output_units: default in seconds but micros can be used
 		:return: the list of lambda in micros
 		"""
 		list_tof = []
 		coeff = 0.3956
 		for _lambda in list_wavelength:
 			_tof = _lambda * detector_sample_distance / coeff - detector_offset
+			if output_units == 's':
+				_tof *= 1e-6
 			list_tof.append(_tof)
 		return list_tof
 

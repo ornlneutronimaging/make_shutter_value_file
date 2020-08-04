@@ -91,6 +91,7 @@ def test_parameters_are_saved(detector_offset, output_folder, detector_sample_di
 	assert o_make.epics_chopper_wavelength_range == epics_chopper_wavelength_range
 
 def test_convert_lambda_to_tof():
+	# output in micros
 	detector_offset = 5000  # micros
 	detector_sample_distance = 1300  # cm
 	list_lambda = [4, 5, 6]
@@ -100,6 +101,19 @@ def test_convert_lambda_to_tof():
 
 	list_tof_expected = convert_lambda_to_tof(list_lambda, detector_offset, detector_sample_distance)
 	assert list_tof == list_tof_expected
+
+	# output in seconds
+	detector_offset = 5000  # micros
+	detector_sample_distance = 1300  # cm
+	list_lambda = [4, 5, 6]
+	list_tof = MakeShuterValueFile.convert_lambda_to_tof(list_wavelength=list_lambda,
+	                                                     detector_offset=detector_offset,
+	                                                     detector_sample_distance=detector_sample_distance,
+	                                                     output_units='s')
+	list_tof_expected = convert_lambda_to_tof(list_lambda, detector_offset, detector_sample_distance)
+	list_tof_expected = [_tof * 1e-6 for _tof in list_tof_expected]
+	assert list_tof == list_tof_expected
+
 
 def test_calculate_min_tof_peak_value_from_edge_of_frame():
 	output_folder = "/tmp/"
@@ -239,7 +253,7 @@ def test_create_default_shutter_value_file_when_no_lambda_provided():
 	file_contain_expected = DEFAULT_SHUTTER_VALUES
 	assert file_contain_created == file_contain_expected
 
-def teset_convert_lambda_dict_to_tof():
+def test_convert_lambda_dict_to_tof():
 	output_folder = "/tmp/"
 	detector_offset = 6000  # micros
 	detector_sample_distance = 1300   # cm
@@ -255,7 +269,7 @@ def teset_convert_lambda_dict_to_tof():
 			dict_list_wavelength_requested=dict_list_wavelength)
 	dict_list_tof = o_make.convert_lambda_dict_to_tof(dict_list_lambda_requested=dict_clean_list_wavelength_requested)
 	print(dict_list_tof)
-	assert False
+	# assert False
 
 def test_set_tof_frames_to_cover_lambda_requested():
 	output_folder = "/tmp/"

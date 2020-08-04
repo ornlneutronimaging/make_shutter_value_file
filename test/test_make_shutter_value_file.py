@@ -105,7 +105,7 @@ def test_calculate_min_tof_peak_value_from_edge_of_frame():
 	output_folder = "/tmp/"
 	detector_offset = 0  # micros
 	detector_sample_distance = 1300  # cm
-	epics_chopper_wavelength_range = [10, 20] # Angstroms
+	epics_chopper_wavelength_range = [10, 20]  # Angstroms
 	o_make = MakeShuterValueFile(detector_offset=detector_offset,
 	                             output_folder=output_folder,
 	                             detector_sample_distance=detector_sample_distance,
@@ -238,6 +238,21 @@ def test_create_default_shutter_value_file_when_no_lambda_provided():
 
 	file_contain_expected = DEFAULT_SHUTTER_VALUES
 	assert file_contain_created == file_contain_expected
+
+def test_set_tof_frames_to_cover_lambda_requested():
+	list_wavelength_requested = [3]
+	output_folder = "/tmp/"
+	detector_offset = 0  # micros
+	detector_sample_distance = 1300   # cm
+	epics_chopper_wavelength_range = [2, 10]  # Angstroms
+	o_make = MakeShuterValueFile(detector_offset=detector_offset,
+	                             output_folder=output_folder,
+	                             detector_sample_distance=detector_sample_distance,
+	                             epics_chopper_wavelength_range=epics_chopper_wavelength_range)
+
+	# test error raised if no dict passed
+	with pytest.raises(ValueError):
+		o_make.set_final_tof_frames()
 
 # @pytest.mark.parametrize('list_wavelength_requested, epics_chopper_wavelength_range',
 #                          [([1, 2, 3], [1, 5]),

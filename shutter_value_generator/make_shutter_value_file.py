@@ -92,6 +92,10 @@ class MakeShuterValueFile:
 			MakeShuterValueFile.check_overlap_wavelength_requested_with_chopper_settings(
 					list_wavelength_requested=list_wavelength_requested,
 					epics_chopper_wavelength_range=self.epics_chopper_wavelength_range)
+			dict_list_wavelength_requested = MakeShuterValueFile.initialize_list_of_wavelength_requested_dictionary(
+					list_wavelength_requested=list_wavelength_requested)
+			dict_clean_list_wavelength_requested = MakeShuterValueFile.combine_wavelength_requested_too_close_to_each_other(
+					dict_list_wavelength_requested=dict_list_wavelength_requested)
 
 	@staticmethod
 	def get_clock_cycle_table():
@@ -215,3 +219,8 @@ class MakeShuterValueFile:
 			new_dictionary[_key] = dictionary[_key]
 
 		return new_dictionary
+
+	@staticmethod
+	def set_final_tof_frames(dict_list_lambda_requested=None):
+		if dict_list_lambda_requested is None:
+			raise ValueError("Empty dict list lambda requested")

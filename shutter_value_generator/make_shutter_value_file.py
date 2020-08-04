@@ -199,44 +199,6 @@ class MakeShuterValueFile:
 
 		return dict_clean_list_wavelength_requested
 
-
-		# _index = 0
-		# while _index <= (len(list_wavelength_requested) - 2):
-		#
-		# 	print(f"_index: {_index}")
-		# 	print(f"dict_list_wavlength_requested: {list_wavelength_requested}")
-		#
-		# 	_reference_key = list_wavelength_requested[_index]
-		# 	_target_key = list_wavelength_requested[_index+1]
-		#
-		# 	if not (_reference_key in list_wavelength_requested):
-		# 		continue
-		#
-		# 	if not (_target_key in list_wavelength_requested):
-		# 		continue
-		#
-		# 	right_reference_range = dict_list_wavelength_requested[_reference_key][1]
-		# 	left_target_range = dict_list_wavelength_requested[_target_key][0]
-		#
-		# 	if left_target_range - right_reference_range < MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME:
-		# 		# merge them
-		# 		mean_key = np.mean([_reference_key, _target_key])
-		# 		dict_list_wavelength_requested[mean_key] = [dict_list_wavelength_requested[_reference_key][0],
-		# 		                                            dict_list_wavelength_requested[_target_key][1]]
-		# 		del dict_list_wavelength_requested[_reference_key]
-		# 		del dict_list_wavelength_requested[_target_key]
-		#
-		# 		dict_list_wavelength_requested = MakeShuterValueFile.sort_dictionary_by_keys(
-		# 				dictionary=dict_list_wavelength_requested)
-		#
-		# 		MakeShuterValueFile.combine_wavelength_requested_too_close_to_each_other(dict_list_wavelength_requested=
-		# 		                                                                         dict_list_wavelength_requested)
-		# 		return
-		# 	else:
-		# 		# we can keep the reference_key
-		# 		pass
-		# 	_index += 1
-
 	@staticmethod
 	def sort_dictionary_by_keys(dictionary=None):
 		"""
@@ -253,49 +215,3 @@ class MakeShuterValueFile:
 			new_dictionary[_key] = dictionary[_key]
 
 		return new_dictionary
-
-	# @staticmethod
-	# def merge_wavelength_requested_if_within_min_lambda_value_threshold(list_wavelength_requested=None):
-	# 	if len(list_wavelength_requested == 1):
-	# 		return
-	# 	list_wavelength_requested = np.array(list_wavelength_requested)
-	# 	delta_list_wavelength_requested = list_wavelength_requested[1:-1] - list_wavelength_requested[0:-2]
-	# 	delta_list_wavelength_requested_below_threshold = np.where(delta_list_wavelength_requested < MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME)
-	#
-	# 	# none of the wavelength requested overlap
-	# 	if delta_list_wavelength_requested_below_threshold[0].size == 0:
-	# 		return
-	#
-	# 	first_overlap = delta_list_wavelength_requested_below_threshold[0][0]
-	# 	list_wavelength_requested = list(list_wavelength_requested)
-	# 	list_wavelength_requested[first_overlap] = np.mean([list_wavelength_requested[first_overlap],
-	# 	                                                    list_wavelength_requested[first_overlap+1]])
-	# 	list_wavelength_requested.pop(first_overlap+1)
-	# 	MakeShuterValueFile.merge_wavelength_requested_if_within_min_lambda_value_threshold(
-	# 			list_wavelength_requested=list_wavelength_requested)
-
-
-
-	# list_tof_requested = MakeShuterValueFile.convert_lambda_to_tof(list_wavelength=list_wavelength_requested,
-		#                                                                detector_sample_distance=detector_sample_distance,
-		#                                                                detector_offset=detector_offset)
-		# list_tof_requested.sort()
-		# epics_tof_range = MakeShuterValueFile.convert_lambda_to_tof(list_wavelength=epics_chopper_wavelength_range,
-		#                                                             detector_offset=detector_offset,
-		#                                                             detector_sample_distance=detector_sample_distance)
-		# epics_tof_range.sort()
-		#
-		# if (list_tof_requested[0] <= epics_tof_range[0]) or (list_tof_requested[-1] >= epics_tof_range[-1]):
-		# 	raise ValueError("One or more of the wavelength you defined is outside the range defined by the choppers!")
-		#
-		# min_tof_peak_value_from_edge_of_frame = MakeShuterValueFile.convert_lambda_to_tof(
-		# 		list_wavelength=[MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME],
-		# 		detector_sample_distance=detector_sample_distance,
-		# 		detector_offset=detector_offset)
-		#
-		# raw_list_of_tof_ranges_requested = []
-		# for _tof in list_tof_requested:
-		# 	raw_list_of_tof_ranges_requested.append([_tof - min_tof_peak_value_from_edge_of_frame[0],
-		# 	                                         _tof + min_tof_peak_value_from_edge_of_frame[0]])
-
-

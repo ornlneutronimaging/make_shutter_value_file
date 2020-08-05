@@ -186,7 +186,7 @@ def test_initialize_dictionary_of_list_of_wavelength_requested():
 	assert dict_list_wavelength_requested[1] == dict_list_wavelength_expected[1]
 
 def test_combine_wavelength_requested_too_close_to_each_other():
-	# case 1
+	# case 1 - only 1 lambda
 	list_wavelength_requested = [5]
 	dict_list_wavelength_requested = MakeShuterValueFile.initialize_list_of_wavelength_requested_dictionary(
 			list_wavelength_requested=list_wavelength_requested)
@@ -195,7 +195,7 @@ def test_combine_wavelength_requested_too_close_to_each_other():
 			dict_list_wavelength_requested=dict_list_wavelength_requested)
 	assert dict_list_wavelength_returned == before_cleaning
 
-	# case 2
+	# case 2 - 2 lambda that do not need any combine
 	list_wavelength_requested = [5, 6]
 	dict_list_wavelength_requested = MakeShuterValueFile.initialize_list_of_wavelength_requested_dictionary(
 			list_wavelength_requested=list_wavelength_requested)
@@ -203,7 +203,7 @@ def test_combine_wavelength_requested_too_close_to_each_other():
 			dict_list_wavelength_requested=dict_list_wavelength_requested)
 	assert dict_list_wavelength_requested == dict_list_wavelength_returned
 
-	# case 3
+	# case 3 - 2 lambda need to be combined
 	list_wavelength_requested = [5, 5.1, 6]
 	dict_list_wavelength_requested = MakeShuterValueFile.initialize_list_of_wavelength_requested_dictionary(
 			list_wavelength_requested=list_wavelength_requested)
@@ -221,7 +221,7 @@ def test_combine_wavelength_requested_too_close_to_each_other():
 		for _exp, _ret in zip(_array_expected, _array_returned):
 			assert np.abs(_exp - _ret) < TOLERANCE
 
-	# case 4
+	# case 4 - 3 lambda to combine
 	list_wavelength_requested = [5, 5.1, 5.2, 6]
 	dict_list_wavelength_requested = MakeShuterValueFile.initialize_list_of_wavelength_requested_dictionary(
 			list_wavelength_requested=list_wavelength_requested)
@@ -232,6 +232,24 @@ def test_combine_wavelength_requested_too_close_to_each_other():
 	                                        5.2 + MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME]
 	dict_list_wavelength_expected[6] = [6 - MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME,
 	                                    6 + MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME]
+	assert dict_list_wavelength_returned.keys() == dict_list_wavelength_expected.keys()
+	for _key in dict_list_wavelength_expected.keys():
+		_array_expected = dict_list_wavelength_expected[_key]
+		_array_returned = dict_list_wavelength_returned[_key]
+		for _exp, _ret in zip(_array_expected, _array_returned):
+			assert np.abs(_exp - _ret) < TOLERANCE
+
+	# case 5 - 2 lambda to combine as too close because of safety wavelength_offset
+	list_wavelength_requested = [5, 6]
+	safety_wavelength_offset = 1
+	dict_list_wavelength_requested = MakeShuterValueFile.initialize_list_of_wavelength_requested_dictionary(
+			list_wavelength_requested=list_wavelength_requested)
+	dict_list_wavelength_returned = MakeShuterValueFile.combine_wavelength_requested_too_close_to_each_other(
+			dict_list_wavelength_requested=dict_list_wavelength_requested,
+			safety_wavelength_offset=safety_wavelength_offset)
+	dict_list_wavelength_expected = OrderedDict()
+	dict_list_wavelength_expected[5.5] = [5 - MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME,
+	                                      6 + MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME]
 	assert dict_list_wavelength_returned.keys() == dict_list_wavelength_expected.keys()
 	for _key in dict_list_wavelength_expected.keys():
 		_array_expected = dict_list_wavelength_expected[_key]

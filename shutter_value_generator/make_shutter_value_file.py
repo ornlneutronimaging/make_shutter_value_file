@@ -94,7 +94,8 @@ class MakeShuterValueFile:
 					epics_chopper_wavelength_range=self.epics_chopper_wavelength_range)
 			dict_list_wavelength_requested = MakeShuterValueFile.initialize_list_of_wavelength_requested_dictionary(
 					list_wavelength_requested=list_wavelength_requested)
-			dict_clean_list_wavelength_requested = MakeShuterValueFile.combine_wavelength_requested_too_close_to_each_other(
+			dict_clean_list_wavelength_requested = \
+				MakeShuterValueFile.combine_wavelength_requested_too_close_to_each_other(
 					dict_list_wavelength_requested=dict_list_wavelength_requested)
 			self.set_final_tof_frames(
 					dict_list_lambda_requested=dict_clean_list_wavelength_requested)
@@ -108,7 +109,8 @@ class MakeShuterValueFile:
 			                                                 output_units=output_units)
 			_tof_range = MakeShuterValueFile.convert_lambda_to_tof(list_wavelength=dict_list_lambda_requested[_lambda],
 			                                                       detector_offset=self.detector_offset,
-			                                                       detector_sample_distance=self.detector_sample_distance,
+			                                                       detector_sample_distance=
+			                                                       self.detector_sample_distance,
 			                                                       output_units=output_units)
 			dict_list_tof_requested[_tof[0]] = _tof_range
 		return dict_list_tof_requested
@@ -185,7 +187,8 @@ class MakeShuterValueFile:
 		return dict_list_wavelength_requested
 
 	@staticmethod
-	def combine_wavelength_requested_too_close_to_each_other(dict_list_wavelength_requested=None):
+	def combine_wavelength_requested_too_close_to_each_other(dict_list_wavelength_requested=None,
+	                                                         safety_wavelength_offset=0):
 		"""
 		This method clean up the dict_list_wavelength_requested dictionary by merging lambda requested
 		that are close to each other (less then MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME). The final lambda
@@ -197,6 +200,8 @@ class MakeShuterValueFile:
 		{5.05: [5-0.3, 5.1+0.3]}
 
 		:param dict_list_wavelength_requested:
+		:param safety_wavelength_offset: this parameter makes sure that two successive lambda range are far enough
+				appart that a dead time of the detector can be inserted between them
 		:return: dictionary of the merged wavelength
 		"""
 		_dict_list_wavelength_requested = copy.deepcopy(dict_list_wavelength_requested)
@@ -215,7 +220,7 @@ class MakeShuterValueFile:
 			first_wavelength_right_range = _dict_list_wavelength_requested[first_wavelength][1]
 			second_wavelength_left_range = _dict_list_wavelength_requested[second_wavelength][0]
 
-			if second_wavelength_left_range - first_wavelength_right_range <= 0:
+			if second_wavelength_left_range - first_wavelength_right_range <= safety_wavelength_offset:
 				# they are too close to each other, we need to merge them
 
 				new_merge_key = np.mean([first_wavelength, second_wavelength])
@@ -225,10 +230,10 @@ class MakeShuterValueFile:
 				del _dict_list_wavelength_requested[first_wavelength]
 				del _dict_list_wavelength_requested[second_wavelength]
 				_dict_list_wavelength_requested[new_merge_key] = [new_merge_left_range, new_merge_right_range]
-				_dict_list_wavelength_requested = MakeShuterValueFile.sort_dictionary_by_keys(dictionary=_dict_list_wavelength_requested)
+				_dict_list_wavelength_requested = \
+					MakeShuterValueFile.sort_dictionary_by_keys(dictionary=_dict_list_wavelength_requested)
 
 			else:
-
 				dict_clean_list_wavelength_requested[first_wavelength] = copy.deepcopy(_dict_list_wavelength_requested[
 					first_wavelength])
 				del _dict_list_wavelength_requested[first_wavelength]
@@ -252,7 +257,6 @@ class MakeShuterValueFile:
 
 		for _key in list_key:
 			new_dictionary[_key] = dictionary[_key]
-
 		return new_dictionary
 
 	def set_final_tof_frames(self, dict_list_lambda_requested=None):
@@ -261,6 +265,8 @@ class MakeShuterValueFile:
 
 		dict_list_tof_requested = self.convert_lambda_dict_to_tof(dict_list_lambda_requested=dict_list_lambda_requested)
 		final_tof_frames = copy.deepcopy(TOF_FRAMES)
+
+
 
 		# for _tof_requested in dict_list_tof_requested.keys():
 		# 	_left_tof, _right_tof = dict_list_tof_requested[_tof_requested]

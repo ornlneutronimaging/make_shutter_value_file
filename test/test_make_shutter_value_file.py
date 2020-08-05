@@ -7,7 +7,7 @@ import copy
 
 TOLERANCE = 1e-3
 
-from shutter_value_generator.make_shutter_value_file import MakeShuterValueFile
+from shutter_value_generator.make_shutter_value_file import MakeShutterValueFile
 from shutter_value_generator.make_shutter_value_file import RESONANCE_SHUTTER_VALUES
 from shutter_value_generator.make_shutter_value_file import DEFAULT_SHUTTER_VALUES
 from shutter_value_generator.make_shutter_value_file import MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME
@@ -48,7 +48,7 @@ def convert_tof_to_lambda(list_tof, detector_offset, detector_sample_distance):
 	return list_lambda
 
 def test_get_clock_cycle_table():
-	clock_cycle_data_returned = MakeShuterValueFile.get_clock_cycle_table()
+	clock_cycle_data_returned = MakeShutterValueFile.get_clock_cycle_table()
 
 	clock_array = make_test_clock_array()
 	for _expected, _returned in zip(clock_array, clock_cycle_data_returned['Clock']):
@@ -68,13 +68,13 @@ def test_get_clock_cycle_table():
 
 def test_make_sure_minimum_parameters_passed_in_for_no_resonance_mode():
 	with pytest.raises(AttributeError):
-		MakeShuterValueFile()
+		MakeShutterValueFile()
 	with pytest.raises(AttributeError):
-		MakeShuterValueFile(output_folder="./")
+		MakeShutterValueFile(output_folder="./")
 	with pytest.raises(AttributeError):
-		MakeShuterValueFile(output_folder="./", detector_sample_distance=1)
+		MakeShutterValueFile(output_folder="./", detector_sample_distance=1)
 	with pytest.raises(AttributeError):
-		MakeShuterValueFile(output_folder="./", detector_sample_distance=10, detector_offset=20)
+		MakeShutterValueFile(output_folder="./", detector_sample_distance=10, detector_offset=20)
 
 @pytest.mark.parametrize('detector_offset, output_folder, detector_sample_distance, resonance_mode, '
                          'epics_chopper_wavelength_range',
@@ -82,7 +82,7 @@ def test_make_sure_minimum_parameters_passed_in_for_no_resonance_mode():
 	                       (10, "/me/tmp/2", 20, False, [10, 20])])
 def test_parameters_are_saved(detector_offset, output_folder, detector_sample_distance, resonance_mode,
                               epics_chopper_wavelength_range):
-	o_make = MakeShuterValueFile(detector_offset=detector_offset,
+	o_make = MakeShutterValueFile(detector_offset=detector_offset,
 	                             output_folder=output_folder,
 	                             detector_sample_distance=detector_sample_distance,
 	                             resonance_mode=resonance_mode,
@@ -97,7 +97,7 @@ def test_convert_lambda_to_tof():
 	detector_offset = 6500  # micros
 	detector_sample_distance = 2100  # cm
 	list_lambda = [4, 5, 6]
-	list_tof = MakeShuterValueFile.convert_lambda_to_tof(list_wavelength=list_lambda,
+	list_tof = MakeShutterValueFile.convert_lambda_to_tof(list_wavelength=list_lambda,
 	                                                     detector_offset=detector_offset,
 	                                                     detector_sample_distance=detector_sample_distance)
 
@@ -106,7 +106,7 @@ def test_convert_lambda_to_tof():
 
 	# output in seconds
 	list_lambda = [4, 5, 6]
-	list_tof = MakeShuterValueFile.convert_lambda_to_tof(list_wavelength=list_lambda,
+	list_tof = MakeShutterValueFile.convert_lambda_to_tof(list_wavelength=list_lambda,
 	                                                     detector_offset=detector_offset,
 	                                                     detector_sample_distance=detector_sample_distance,
 	                                                     output_units='s')
@@ -118,7 +118,7 @@ def test_convert_tof_to_lambda():
 	detector_offset = 6500  # micros
 	detector_sample_distance = 2100  # cm
 	tof = 21000     # micros
-	lambda_returned = MakeShuterValueFile.convert_tof_to_lambda(tof=tof,
+	lambda_returned = MakeShutterValueFile.convert_tof_to_lambda(tof=tof,
 	                                                            detector_offset=detector_offset,
 	                                                            detector_sample_distance=detector_sample_distance)
 	lambda_expected = convert_tof_to_lambda(list_tof=[tof],
@@ -131,7 +131,7 @@ def test_calculate_min_tof_peak_value_from_edge_of_frame():
 	detector_offset = 6500  # micros
 	detector_sample_distance = 2100  # cm
 	epics_chopper_wavelength_range = [MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME]  # Angstroms
-	o_make = MakeShuterValueFile(detector_offset=detector_offset,
+	o_make = MakeShutterValueFile(detector_offset=detector_offset,
 	                             output_folder=output_folder,
 	                             detector_sample_distance=detector_sample_distance,
 	                             epics_chopper_wavelength_range=epics_chopper_wavelength_range)
@@ -146,7 +146,7 @@ def test_calculate_min_tof_peak_value_from_edge_of_frame():
                                           "entry1, entry2, entry3\nentry4, entry5, entry6"])
 def test_make_ascii_file_from_string_single_entry(file_contain):
 	ascii_filename = make_tmp_ascii_filename()
-	MakeShuterValueFile.make_ascii_file_from_string(text=file_contain,
+	MakeShutterValueFile.make_ascii_file_from_string(text=file_contain,
 	                                                filename=ascii_filename)
 	with open(ascii_filename, 'r') as f:
 		file_created = f.readlines()
@@ -159,7 +159,7 @@ def test_make_ascii_file_from_string_single_entry(file_contain):
 
 def test_create_shutter_value_for_resonance_mode():
 	temp_dir = gettempdir()
-	o_make = MakeShuterValueFile(output_folder=temp_dir,
+	o_make = MakeShutterValueFile(output_folder=temp_dir,
 	                             resonance_mode=True)
 	o_make.run()
 
@@ -175,12 +175,12 @@ def test_create_shutter_value_for_resonance_mode():
                           ([12, 29.9], [9.8, 30])])
 def test_lambda_to_close_to_edge_of_epics_chopper_raise_error(list_wavelength_requested, epics_chopper_wavelength_range):
 	with pytest.raises(ValueError):
-		MakeShuterValueFile.check_overlap_wavelength_requested_with_chopper_settings(list_wavelength_requested=list_wavelength_requested,
+		MakeShutterValueFile.check_overlap_wavelength_requested_with_chopper_settings(list_wavelength_requested=list_wavelength_requested,
 								                                                     epics_chopper_wavelength_range=epics_chopper_wavelength_range)
 
 def test_initialize_dictionary_of_list_of_wavelength_requested():
 	list_of_wavelength_requested = [1, 2, 5, 10, 20]
-	dict_list_wavelength_requested = MakeShuterValueFile.initialize_list_of_wavelength_requested_dictionary(
+	dict_list_wavelength_requested = MakeShutterValueFile.initialize_list_of_wavelength_requested_dictionary(
 			list_wavelength_requested=list_of_wavelength_requested)
 	dict_list_wavelength_expected = OrderedDict()
 	dict_list_wavelength_expected[1] = [1 - MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME,
@@ -191,26 +191,26 @@ def test_initialize_dictionary_of_list_of_wavelength_requested():
 def test_combine_wavelength_requested_too_close_to_each_other():
 	# case 1 - only 1 lambda
 	list_wavelength_requested = [5]
-	dict_list_wavelength_requested = MakeShuterValueFile.initialize_list_of_wavelength_requested_dictionary(
+	dict_list_wavelength_requested = MakeShutterValueFile.initialize_list_of_wavelength_requested_dictionary(
 			list_wavelength_requested=list_wavelength_requested)
 	before_cleaning = copy.deepcopy(dict_list_wavelength_requested)
-	dict_list_wavelength_returned = MakeShuterValueFile.combine_wavelength_requested_too_close_to_each_other(
+	dict_list_wavelength_returned = MakeShutterValueFile.combine_wavelength_requested_too_close_to_each_other(
 			dict_list_wavelength_requested=dict_list_wavelength_requested)
 	assert dict_list_wavelength_returned == before_cleaning
 
 	# case 2 - 2 lambda that do not need any combine
 	list_wavelength_requested = [5, 6]
-	dict_list_wavelength_requested = MakeShuterValueFile.initialize_list_of_wavelength_requested_dictionary(
+	dict_list_wavelength_requested = MakeShutterValueFile.initialize_list_of_wavelength_requested_dictionary(
 			list_wavelength_requested=list_wavelength_requested)
-	dict_list_wavelength_returned = MakeShuterValueFile.combine_wavelength_requested_too_close_to_each_other(
+	dict_list_wavelength_returned = MakeShutterValueFile.combine_wavelength_requested_too_close_to_each_other(
 			dict_list_wavelength_requested=dict_list_wavelength_requested)
 	assert dict_list_wavelength_requested == dict_list_wavelength_returned
 
 	# case 3 - 2 lambda need to be combined
 	list_wavelength_requested = [5, 5.1, 6]
-	dict_list_wavelength_requested = MakeShuterValueFile.initialize_list_of_wavelength_requested_dictionary(
+	dict_list_wavelength_requested = MakeShutterValueFile.initialize_list_of_wavelength_requested_dictionary(
 			list_wavelength_requested=list_wavelength_requested)
-	dict_list_wavelength_returned = MakeShuterValueFile.combine_wavelength_requested_too_close_to_each_other(
+	dict_list_wavelength_returned = MakeShutterValueFile.combine_wavelength_requested_too_close_to_each_other(
 			dict_list_wavelength_requested=dict_list_wavelength_requested)
 	dict_list_wavelength_expected = OrderedDict()
 	dict_list_wavelength_expected[5.05] = [5 - MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME,
@@ -226,9 +226,9 @@ def test_combine_wavelength_requested_too_close_to_each_other():
 
 	# case 4 - 3 lambda to combine
 	list_wavelength_requested = [5, 5.1, 5.2, 6]
-	dict_list_wavelength_requested = MakeShuterValueFile.initialize_list_of_wavelength_requested_dictionary(
+	dict_list_wavelength_requested = MakeShutterValueFile.initialize_list_of_wavelength_requested_dictionary(
 			list_wavelength_requested=list_wavelength_requested)
-	dict_list_wavelength_returned = MakeShuterValueFile.combine_wavelength_requested_too_close_to_each_other(
+	dict_list_wavelength_returned = MakeShutterValueFile.combine_wavelength_requested_too_close_to_each_other(
 			dict_list_wavelength_requested=dict_list_wavelength_requested)
 	dict_list_wavelength_expected = OrderedDict()
 	dict_list_wavelength_expected[5.125] = [5 - MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME,
@@ -245,9 +245,9 @@ def test_combine_wavelength_requested_too_close_to_each_other():
 	# case 5 - 2 lambda to combine as too close because of safety wavelength_offset
 	list_wavelength_requested = [5, 6]
 	safety_wavelength_offset = 1
-	dict_list_wavelength_requested = MakeShuterValueFile.initialize_list_of_wavelength_requested_dictionary(
+	dict_list_wavelength_requested = MakeShutterValueFile.initialize_list_of_wavelength_requested_dictionary(
 			list_wavelength_requested=list_wavelength_requested)
-	dict_list_wavelength_returned = MakeShuterValueFile.combine_wavelength_requested_too_close_to_each_other(
+	dict_list_wavelength_returned = MakeShutterValueFile.combine_wavelength_requested_too_close_to_each_other(
 			dict_list_wavelength_requested=dict_list_wavelength_requested,
 			safety_wavelength_offset=safety_wavelength_offset)
 	dict_list_wavelength_expected = OrderedDict()
@@ -266,12 +266,12 @@ def test_sort_dictionary_by_keys():
 	dict1[2] = [30, 40]
 	dict1[0.5] = [50, 60]
 
-	new_dict = MakeShuterValueFile.sort_dictionary_by_keys(dictionary=dict1)
+	new_dict = MakeShutterValueFile.sort_dictionary_by_keys(dictionary=dict1)
 	assert [0.5, 1, 2] == list(new_dict.keys())
 
 def test_create_default_shutter_value_file_when_no_lambda_provided():
 	temp_dir = gettempdir()
-	o_make = MakeShuterValueFile(output_folder=temp_dir,
+	o_make = MakeShutterValueFile(output_folder=temp_dir,
 	                             default_values=True)
 	o_make.run()
 
@@ -286,26 +286,27 @@ def test_create_default_shutter_value_file_when_no_lambda_provided():
 def test_convert_lambda_dict_to_tof():
 	output_folder = "/tmp/"
 	detector_offset = 6000  # micros
-	detector_sample_distance = 1300   # cm
+	detector_sample_distance = 2100   # cm
 	epics_chopper_wavelength_range = [2, 10]  # Angstroms
-	o_make = MakeShuterValueFile(detector_offset=detector_offset,
+	o_make = MakeShutterValueFile(detector_offset=detector_offset,
 	                             output_folder=output_folder,
 	                             detector_sample_distance=detector_sample_distance,
 	                             epics_chopper_wavelength_range=epics_chopper_wavelength_range)
 	list_wavelength_requested = [3, 5, 8]
-	dict_list_wavelength = MakeShuterValueFile.initialize_list_of_wavelength_requested_dictionary(
+	dict_list_wavelength = MakeShutterValueFile.initialize_list_of_wavelength_requested_dictionary(
 			list_wavelength_requested=list_wavelength_requested)
-	dict_clean_list_wavelength_requested = MakeShuterValueFile.combine_wavelength_requested_too_close_to_each_other(
+	dict_clean_list_wavelength_requested = MakeShutterValueFile.combine_wavelength_requested_too_close_to_each_other(
 			dict_list_wavelength_requested=dict_list_wavelength)
 	dict_list_tof = o_make.convert_lambda_dict_to_tof(dict_list_lambda_requested=dict_clean_list_wavelength_requested,
 	                                                  output_units='s')
 	dict_list_tof_expected = OrderedDict()
 	for _lambda in dict_clean_list_wavelength_requested.keys():
-		_tof = MakeShuterValueFile.convert_lambda_to_tof(list_wavelength=[_lambda],
+		_tof = MakeShutterValueFile.convert_lambda_to_tof(list_wavelength=[_lambda],
 		                                                 detector_offset=detector_offset,
 		                                                 detector_sample_distance=detector_sample_distance,
 		                                                 output_units='s')
-		_range = MakeShuterValueFile.convert_lambda_to_tof(list_wavelength=dict_clean_list_wavelength_requested[
+		print(f"_tof: {_tof}")
+		_range = MakeShutterValueFile.convert_lambda_to_tof(list_wavelength=dict_clean_list_wavelength_requested[
 			_lambda],
 		                                                   detector_offset=detector_offset,
 		                                                   detector_sample_distance=detector_sample_distance,
@@ -324,7 +325,7 @@ def test_set_tof_frames_to_cover_lambda_requested():
 	detector_offset = 6000  # micros
 	detector_sample_distance = 2100   # cm
 	epics_chopper_wavelength_range = [1, 10]  # Angstroms
-	o_make = MakeShuterValueFile(detector_offset=detector_offset,
+	o_make = MakeShutterValueFile(detector_offset=detector_offset,
 	                             output_folder=output_folder,
 	                             detector_sample_distance=detector_sample_distance,
 	                             epics_chopper_wavelength_range=epics_chopper_wavelength_range)
@@ -340,11 +341,22 @@ def test_set_tof_frames_to_cover_lambda_requested():
 	final_tof_frames_expected = TOF_FRAMES
 
 	assert len(final_tof_frames_calculated) == len(final_tof_frames_expected)
-	# for _range_calculated, _range_expected in zip(final_tof_frames_calculated, final_tof_frames_expected):
-	# 	assert _range_calculated[0] == _range_expected[0]
-	# 	assert _range_calculated[1] == _range_expected[1]
-	#
-	# assert False
+	for _range_calculated, _range_expected in zip(final_tof_frames_calculated, final_tof_frames_expected):
+		assert _range_calculated[0] == _range_expected[0]
+		assert _range_calculated[1] == _range_expected[1]
+
+	# test 2 wavelengths
+	list_wavelength_requested = [3, 4]
+	o_make.run(list_wavelength_requested=list_wavelength_requested)
+	final_tof_frames_calculated = o_make.final_tof_frames
+	final_tof_frames_expected = TOF_FRAMES
+
+	assert len(final_tof_frames_calculated) == len(final_tof_frames_expected)
+	for _range_calculated, _range_expected in zip(final_tof_frames_calculated, final_tof_frames_expected):
+		assert _range_calculated[0] == _range_expected[0]
+		assert _range_calculated[1] == _range_expected[1]
+
+	assert False
 
 # @pytest.mark.parametrize('list_wavelength_requested, epics_chopper_wavelength_range',
 #                          [([1, 2, 3], [1, 5]),
@@ -356,7 +368,7 @@ def test_set_tof_frames_to_cover_lambda_requested():
 # 	detector_sample_distance = 1300
 # 	detector_offset = 6300
 # 	with pytest.raises(ValueError):
-# 		MakeShuterValueFile.realign_frames_with_tof_requested(
+# 		MakeShutterValueFile.realign_frames_with_tof_requested(
 # 			list_wavelength_requested=list_wavelength_requested,
 # 			detector_sample_distance=detector_sample_distance,
 # 			detector_offset=detector_offset,

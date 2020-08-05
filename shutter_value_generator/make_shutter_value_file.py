@@ -5,12 +5,13 @@ from pathlib import Path
 from collections import OrderedDict
 import copy
 
-DELTA_TIME_BETWEEN_FRAMES = 0.32e-6   # s
+DELTA_TIME_BETWEEN_FRAMES = 0.32e-6  # s
 CLOCK_CYCLE_FILE = 'clock_cycle.txt'
 SHUTTER_VALUE_FILENAME = "ShutterValues.txt"
 
-MN = 1.674927471e-27  #kg - neutron mass
-H = 6.62607004e-34 #J s - Planck constant
+MN = 1.674927471e-27  # kg - neutron mass
+H = 6.62607004e-34  # J s - Planck constant
+COEFF = (H / MN) * 1e-6
 
 TOF_FRAMES = [[1e-6, 2.5e-3],
               [2.9e-3, 5.8e-3],
@@ -19,6 +20,7 @@ MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME = 0.3  # Angstroms
 
 RESONANCE_SHUTTER_VALUES = "1e-6\t320e-6\t3\t0.16"
 DEFAULT_SHUTTER_VALUES = "1e-6\t2.5e-3\t5\t10.24\n2.9e-3\t5.8e-3\t6\t10.24\n6.2e-3\t15.9e-3\t7\t10.24"
+
 
 # parser = argparse.ArgumentParser(description="Generate ShutterValue.txt file used by the MCP detector")
 # parser.add_argument('--output', default='./', help='output folder where the ShutterValue.txt file will be created')
@@ -63,13 +65,14 @@ class MakeShuterValueFile:
 
 			if epics_chopper_wavelength_range is None:
 				raise AttributeError(
-					"Provides the maximum range of wavelength in Angstroms the chopper are set up for! ["
-					"min_value, max_value]")
+						"Provides the maximum range of wavelength in Angstroms the chopper are set up for! ["
+						"min_value, max_value]")
 
-			self.min_tof_peak_value_from_edge_of_frame = MakeShuterValueFile.convert_lambda_to_tof(
+			_min_tof_peak_value_from_edge_of_frame = MakeShuterValueFile.convert_lambda_to_tof(
 					list_wavelength=[MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME],
-					detector_offset=0,
+					detector_offset=detector_offset,
 					detector_sample_distance=self.detector_sample_distance)
+			self.min_tof_peak_value_from_edge_of_frame = _min_tof_peak_value_from_edge_of_frame[0]
 
 		self.resonance_mode = resonance_mode
 		self.default_values = default_values
@@ -96,8 +99,8 @@ class MakeShuterValueFile:
 					list_wavelength_requested=list_wavelength_requested)
 			dict_clean_list_wavelength_requested = \
 				MakeShuterValueFile.combine_wavelength_requested_too_close_to_each_other(
-					dict_list_wavelength_requested=dict_list_wavelength_requested)
-			self.set_final_tof_frames(
+						dict_list_wavelength_requested=dict_list_wavelength_requested)
+			self.final_tof_frames = self.set_final_tof_frames(
 					dict_list_lambda_requested=dict_clean_list_wavelength_requested)
 
 	def convert_lambda_dict_to_tof(self, dict_list_lambda_requested=None, output_units='micros'):
@@ -127,8 +130,7 @@ class MakeShuterValueFile:
 		:return:
 		lambda in Angstroms
 		"""
-		coeff = 0.3956
-		return (detector_offset - tof) * coeff / detector_sample_distance
+		return (detector_offset + tof) * COEFF / detector_sample_distance
 
 	@staticmethod
 	def get_clock_cycle_table():
@@ -155,9 +157,8 @@ class MakeShuterValueFile:
 		:return: the list of lambda in micros
 		"""
 		list_tof = []
-		coeff = 0.3956
 		for _lambda in list_wavelength:
-			_tof = _lambda * detector_sample_distance / coeff - detector_offset
+			_tof = _lambda * detector_sample_distance / COEFF - detector_offset
 			if output_units == 's':
 				_tof *= 1e-6
 			list_tof.append(_tof)
@@ -165,8 +166,8 @@ class MakeShuterValueFile:
 
 	@staticmethod
 	def make_ascii_file_from_string(text="", filename=''):
-	    with open(filename, 'w') as f:
-	        f.write(text)
+		with open(filename, 'w') as f:
+			f.write(text)
 
 	@staticmethod
 	def check_overlap_wavelength_requested_with_chopper_settings(list_wavelength_requested=None,
@@ -174,9 +175,9 @@ class MakeShuterValueFile:
 		for _wavelength_requested in list_wavelength_requested:
 			if ((_wavelength_requested - MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME) < epics_chopper_wavelength_range[
 				0]) or ((_wavelength_requested + MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME) >
-					epics_chopper_wavelength_range[1]):
+			            epics_chopper_wavelength_range[1]):
 				raise ValueError(
-					"One or more of the wavelength you defined won't allow to fully measure the Bragg Edge!")
+						"One or more of the wavelength you defined won't allow to fully measure the Bragg Edge!")
 
 	@staticmethod
 	def initialize_list_of_wavelength_requested_dictionary(list_wavelength_requested=None):
@@ -235,7 +236,7 @@ class MakeShuterValueFile:
 
 			else:
 				dict_clean_list_wavelength_requested[first_wavelength] = copy.deepcopy(_dict_list_wavelength_requested[
-					first_wavelength])
+					                                                                       first_wavelength])
 				del _dict_list_wavelength_requested[first_wavelength]
 
 		last_key = list(_dict_list_wavelength_requested.keys())[0]
@@ -266,14 +267,22 @@ class MakeShuterValueFile:
 		dict_list_tof_requested = self.convert_lambda_dict_to_tof(dict_list_lambda_requested=dict_list_lambda_requested)
 		final_tof_frames = copy.deepcopy(TOF_FRAMES)
 
+		print(f"final_tof_frames: {final_tof_frames}")
+		print(f"dict_list_tof_requested: {dict_list_tof_requested.keys()}")
 
+		for _tof_requested in dict_list_tof_requested.keys():
+			[_left_tof_requested, _right_tof_requested] = dict_list_tof_requested[_tof_requested]
+			for _final_tof in final_tof_frames:
+				_left_tof_final, _right_tof_final = _final_tof
+				if (_left_tof_requested > _left_tof_final) and (_right_tof_requested < _right_tof_final):
+					continue
+				elif _left_tof_requested > _left_tof_final:
+					pass
+				elif _right_tof_requested < _right_tof_final:
+					# tof requested is overlapping with the left edge
+					pass
+				else:
+					# full tof range requested is outside this final tof range proposed
+					continue
 
-		# for _tof_requested in dict_list_tof_requested.keys():
-		# 	_left_tof, _right_tof = dict_list_tof_requested[_tof_requested]
-		# 	for _final_tof in final_tof_frames:
-		# 		_left_final_tof, _right_final_tof = _final_tof
-		# 		if (_left_tof > _left_final_tof) and (_right_tof < _right_tof):
-		# 			continue
-		# 		elif (_left_tof < _left_final_tof):
-		# 			# if not first range, we need to merge with previous range and cut just after this value
-
+		return final_tof_frames

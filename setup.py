@@ -17,7 +17,7 @@ setup(
     author="Jean Bilheux",
     author_email="bilheuxjm@ornl.gov",
     packages=find_packages(exclude=['tests', 'notebooks']),
-    # package_data={'MakeShutterValueFile': ['reference_data/_data_for_unittest/*']},
+    package_data={'ClockCycleFile': ['shutter_value_generator/clock_cycle.txt']},
     include_package_data=True,
     test_suite='tests',
     install_requires=[
@@ -28,7 +28,7 @@ setup(
     description="tool to create ShutterValue.txt file used by MCP detector",
     long_description=read_file('README.rst'),
     license='BSD',
-    keywords=['neutron', 'imaging', 'detector'],
+    keywords=['neutron', 'imaging', 'DAS'],
     url="https://github.com/ornlneutronimaging/make_shutter_value_file.git",
     classifiers=['Development Status :: 3 - Alpha',
                  'License :: OSI Approved :: BSD License',

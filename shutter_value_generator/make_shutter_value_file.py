@@ -5,7 +5,6 @@ from pathlib import Path
 from collections import OrderedDict
 import copy
 
-# DELTA_TIME_BETWEEN_FRAMES = 0.32e-6  # s
 CLOCK_CYCLE_FILE = 'clock_cycle.txt'
 SHUTTER_VALUE_FILENAME = "ShutterValues.txt"
 
@@ -21,7 +20,6 @@ MIN_TOF_BETWEEN_FRAMES = TOF_FRAMES[1][0] - TOF_FRAMES[0][1]
 
 RESONANCE_SHUTTER_VALUES = "1e-6\t320e-6\t3\t0.16"
 DEFAULT_SHUTTER_VALUES = "1e-6\t2.5e-3\t5\t10.24\n2.9e-3\t5.8e-3\t6\t10.24\n6.2e-3\t15.9e-3\t7\t10.24"
-
 
 # parser = argparse.ArgumentParser(description="Generate ShutterValue.txt file used by the MCP detector")
 # parser.add_argument('--output', default='./', help='output folder where the ShutterValue.txt file will be created')
@@ -68,6 +66,14 @@ class MakeShutterValueFile:
 				raise AttributeError(
 						"Provides the maximum range of wavelength in Angstroms the chopper are set up for! ["
 						"min_value, max_value]")
+			if not type(epics_chopper_wavelength_range) is list:
+				raise AttributeError(
+						"Provides the maximum range of wavelength in Angstroms the chopper are set up for! ["
+						"min_value, max_value]")
+			if len(epics_chopper_wavelength_range) != 2:
+				raise AttributeError(
+						"Provides the maximum range of wavelength in Angstroms the chopper are set up for! ["
+						"min_value, max_value]")
 
 			_min_tof_peak_value_from_edge_of_frame = MakeShutterValueFile.convert_lambda_to_tof(
 					list_wavelength=[MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME],
@@ -81,6 +87,7 @@ class MakeShutterValueFile:
 		self.detector_sample_distance = detector_sample_distance
 		self.detector_offset = detector_offset
 		self.epics_chopper_wavelength_range = epics_chopper_wavelength_range
+		self.minimum_measurable_lambda = self.calculate_minimum_measurable_lambda()
 
 	def run(self, list_wavelength_requested=None):
 		filename = Path(self.output_folder) / SHUTTER_VALUE_FILENAME
@@ -93,16 +100,43 @@ class MakeShutterValueFile:
 			MakeShutterValueFile.make_ascii_file_from_string(text=default_shutter_value_ascii,
 			                                                filename=filename)
 		else:
+
+			self.make_sure_list_wavelength_requested_can_be_measure(list_wavelength_requested=list_wavelength_requested)
+
 			MakeShutterValueFile.check_overlap_wavelength_requested_with_chopper_settings(
 					list_wavelength_requested=list_wavelength_requested,
 					epics_chopper_wavelength_range=self.epics_chopper_wavelength_range)
+
 			dict_list_wavelength_requested = MakeShutterValueFile.initialize_list_of_wavelength_requested_dictionary(
 					list_wavelength_requested=list_wavelength_requested)
+
 			self.dict_clean_list_wavelength_requested = \
 				MakeShutterValueFile.combine_wavelength_requested_too_close_to_each_other(
 						dict_list_wavelength_requested=dict_list_wavelength_requested)
+
+
+
+
+
+
+
+
 			self.final_tof_frames = self.set_final_tof_frames(
 					dict_list_lambda_requested=self.dict_clean_list_wavelength_requested)
+
+	def make_sure_list_wavelength_requested_can_be_measure(self, list_wavelength_requested=None):
+
+		# make sure lambda is above minimum lambda we can measure with the detector offset defined
+		for _lambda in list_wavelength_requested:
+			if _lambda - MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME < self.minimum_measurable_lambda:
+				raise ValueError("Lambda too small to too close to start to be measurable")
+
+		# make sure lambda is within min and max tof defined in default shutter value
+
+
+	def calculate_minimum_measurable_lambda(self):
+		if self.detector_sample_distance and self.detector_offset:
+			return self.detector_offset * COEFF / self.detector_sample_distance
 
 	def convert_lambda_dict_to_tof(self, dict_list_lambda_requested=None, output_units='micros'):
 		dict_list_tof_requested = OrderedDict()
@@ -184,8 +218,9 @@ class MakeShutterValueFile:
 	def initialize_list_of_wavelength_requested_dictionary(list_wavelength_requested=None):
 		dict_list_wavelength_requested = OrderedDict()
 		for _wave in list_wavelength_requested:
-			dict_list_wavelength_requested[_wave] = [_wave - MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME,
-			                                         _wave + MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME]
+			_left = _wave - MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME
+			_right = _wave + MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME
+			dict_list_wavelength_requested[_wave] = [_left, _right]
 		return dict_list_wavelength_requested
 
 	@staticmethod
@@ -269,9 +304,7 @@ class MakeShutterValueFile:
 				dict_list_lambda_requested=dict_list_lambda_requested,
 				output_units='s')
 		final_tof_frames = copy.deepcopy(TOF_FRAMES)
-		print(f"type(final_tof_frames): {type(final_tof_frames)}")
-
-		print(f"MIN_TOF_BETWEEN_FRAMES: {MIN_TOF_BETWEEN_FRAMES}")
+		print(f"final_tof_frames: {final_tof_frames}")
 
 		index_tof_requested = 0
 		list_tof_requested_keys = list(dict_list_tof_requested.keys())
@@ -280,7 +313,9 @@ class MakeShutterValueFile:
 			[_left_tof_requested, _right_tof_requested] = dict_list_tof_requested[list_tof_requested_keys[
 				index_tof_requested]]
 
-			print(f"tof_requested: [{_left_tof_requested}, {_right_tof_requested}]")
+			print(f"working with -> tof_requested {list_tof_requested_keys[index_tof_requested]} and range: "
+			      f"[{_left_tof_requested},"
+			      f" {_right_tof_requested}]")
 
 			for index_final_tof_frames, [_left_final_tof, _right_final_tof] in enumerate(final_tof_frames):
 
@@ -289,8 +324,6 @@ class MakeShutterValueFile:
 				if (_left_tof_requested >= _left_final_tof) and (_right_tof_requested <= _right_final_tof):
 					# tof range requested full fit inside one of the final tof frame, let's move on
 					# to the next tof range requested
-
-					print("-> tof requested fit perfectly inside this final tof!")
 					break
 
 				elif (_left_tof_requested < _left_final_tof):

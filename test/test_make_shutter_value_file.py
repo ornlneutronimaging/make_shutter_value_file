@@ -40,6 +40,17 @@ def make_test_range_array():
 		range_array.append(range_array[-1] * 2.)
 	return range_array
 
+def test_calculate_minimum_measurable_lambda():
+	output_folder = "/tmp/"
+	detector_offset = 6000  # micros
+	detector_sample_distance = 2100   # cm
+	epics_chopper_wavelength_range = [.1, 10]  # Angstroms
+	o_make = MakeShutterValueFile(detector_offset=detector_offset,
+	                              output_folder=output_folder,
+	                              detector_sample_distance=detector_sample_distance,
+	                              epics_chopper_wavelength_range=epics_chopper_wavelength_range)
+	print(o_make.minimum_measurable_lambda)
+
 def convert_lambda_to_tof(list_lambda, detector_offset, detector_sample_distance):
 	list_tof = [_lambda * detector_sample_distance / COEFF - detector_offset for _lambda in list_lambda]
 	return list_tof
@@ -127,11 +138,41 @@ def test_convert_tof_to_lambda():
 	                                        detector_sample_distance=detector_sample_distance)
 	assert np.abs(lambda_expected[0] - lambda_returned) < TOLERANCE
 
+# def test_remove_me():
+# 	detector_offset = 6500  # micros
+# 	detector_sample_distance = 2100  # cm
+# 	TOF_FRAMES = [[1e-6, 2.5e-3],
+# 	              [2.9e-3, 5.8e-3],
+# 	              [6.2e-3, 15.9e-3]]
+# 	for _frame in TOF_FRAMES:
+# 		print(_frame)
+# 		_left_tof = _frame[0] * 1e6
+# 		_right_tof = _frame[1] * 1e6
+# 		left_lambda = MakeShutterValueFile.convert_tof_to_lambda(tof=_left_tof,
+# 	                                                                detector_offset=detector_offset,
+# 	                                                                detector_sample_distance=detector_sample_distance)
+# 		right_lambda = MakeShutterValueFile.convert_tof_to_lambda(tof=_right_tof,
+# 	                                                                detector_offset=detector_offset,
+# 	                                                                detector_sample_distance=detector_sample_distance)
+# 		print(f"going from {left_lambda} to {right_lambda}")
+#
+# 	assert False
+
+def test_error_raised_if_lambda_outside_time_spectra():
+	output_folder = "/tmp/"
+	detector_offset = 6500  # micros
+	detector_sample_distance = 2100  # cm
+	epics_chopper_wavelength_range = [MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME, 20]  # Angstroms
+	o_make = MakeShutterValueFile(detector_offset=detector_offset,
+	                              output_folder=output_folder,
+	                              detector_sample_distance=detector_sample_distance,
+	                              epics_chopper_wavelength_range=epics_chopper_wavelength_range)
+
 def test_calculate_min_tof_peak_value_from_edge_of_frame():
 	output_folder = "/tmp/"
 	detector_offset = 6500  # micros
 	detector_sample_distance = 2100  # cm
-	epics_chopper_wavelength_range = [MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME]  # Angstroms
+	epics_chopper_wavelength_range = [MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME, 20]  # Angstroms
 	o_make = MakeShutterValueFile(detector_offset=detector_offset,
 	                             output_folder=output_folder,
 	                             detector_sample_distance=detector_sample_distance,
@@ -142,6 +183,19 @@ def test_calculate_min_tof_peak_value_from_edge_of_frame():
 	                                                                       detector_sample_distance=detector_sample_distance)
 	assert np.abs(min_tof_peak_value_from_edge_of_frame_expected[0] - min_tof_peak_value_from_edge_of_frame_calculated) \
 	       < TOLERANCE
+
+def test_error_raised_if_lambda_too_small():
+	output_folder = "/tmp/"
+	detector_offset = 6500  # micros
+	detector_sample_distance = 2100  # cm
+	epics_chopper_wavelength_range = [MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME, 20]  # Angstroms
+	o_make = MakeShutterValueFile(detector_offset=detector_offset,
+	                             output_folder=output_folder,
+	                             detector_sample_distance=detector_sample_distance,
+	                             epics_chopper_wavelength_range=epics_chopper_wavelength_range)
+	list_of_wavelength_requested = [1, 5, 10, 20]
+	with pytest.raises(ValueError):
+		o_make.run(list_wavelength_requested=list_of_wavelength_requested)
 
 @pytest.mark.parametrize('file_contain', [("entry1, entry2, entry3"),
                                           "entry1, entry2, entry3\nentry4, entry5, entry6"])
@@ -180,14 +234,17 @@ def test_lambda_to_close_to_edge_of_epics_chopper_raise_error(list_wavelength_re
 								                                                     epics_chopper_wavelength_range=epics_chopper_wavelength_range)
 
 def test_initialize_dictionary_of_list_of_wavelength_requested():
-	list_of_wavelength_requested = [1, 2, 5, 10, 20]
+	list_of_wavelength_requested = [2, 5, 10, 20]
 	dict_list_wavelength_requested = MakeShutterValueFile.initialize_list_of_wavelength_requested_dictionary(
 			list_wavelength_requested=list_of_wavelength_requested)
 	dict_list_wavelength_expected = OrderedDict()
-	dict_list_wavelength_expected[1] = [1 - MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME,
-	                                    1 + MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME]
+	for _request in list_of_wavelength_requested:
+		_left = np.max([0, _request - MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME])
+		_right = np.max([0, _request + MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME])
+		dict_list_wavelength_expected[_request] = [_left, _right]
 
-	assert dict_list_wavelength_requested[1] == dict_list_wavelength_expected[1]
+	for _key in dict_list_wavelength_requested.keys():
+		assert dict_list_wavelength_expected[_key] == dict_list_wavelength_requested[_key]
 
 def test_combine_wavelength_requested_too_close_to_each_other():
 	# case 1 - only 1 lambda
@@ -321,93 +378,114 @@ def test_convert_lambda_dict_to_tof():
 		assert np.abs(list_tof_expected[0] - list_tof_returned[0]) < TOLERANCE
 		assert np.abs(list_tof_expected[1] - list_tof_returned[1]) < TOLERANCE
 
-def test_set_tof_frames_to_cover_lambda_requested():
-	output_folder = "/tmp/"
-	detector_offset = 6000  # micros
-	detector_sample_distance = 2100   # cm
-	epics_chopper_wavelength_range = [.1, 10]  # Angstroms
-	o_make = MakeShutterValueFile(detector_offset=detector_offset,
-	                              output_folder=output_folder,
-	                              detector_sample_distance=detector_sample_distance,
-	                              epics_chopper_wavelength_range=epics_chopper_wavelength_range)
-
-	# test error raised if no dict passed
-	with pytest.raises(ValueError):
-		o_make.set_final_tof_frames()
-
-	# test 1 wavelength within the first range does not change the default TOF frame
-	list_wavelength_requested = [1.3]
-	o_make.run(list_wavelength_requested=list_wavelength_requested)
-	final_tof_frames_calculated = o_make.final_tof_frames
-
-	dict_clean_list_wavelength_requested = o_make.dict_clean_list_wavelength_requested
-	list_tof_expected = MakeShutterValueFile.convert_lambda_to_tof(
-			list_wavelength=dict_clean_list_wavelength_requested[list_wavelength_requested[0]],
-			detector_offset=detector_offset,
-			detector_sample_distance=detector_sample_distance,
-			output_units='s')
-
-	final_tof_frames_expected = TOF_FRAMES
-
-	print("final_tof_frames_calculated")
-	print(f"->> {final_tof_frames_calculated}")
-	print(f"->> {final_tof_frames_expected}")
-
-	assert len(final_tof_frames_calculated) == len(final_tof_frames_expected)
-	for _range_calculated, _range_expected in zip(final_tof_frames_calculated, final_tof_frames_expected):
-		assert _range_calculated[0] == _range_expected[0]
-		assert _range_calculated[1] == _range_expected[1]
-
-	# test 1 wavelength across the first edge add 1 frame to final TOF_FRAMES
-	list_wavelength_requested = [1.8]
-	o_make.run(list_wavelength_requested=list_wavelength_requested)
-	final_tof_frames_calculated = o_make.final_tof_frames
-
-	dict_clean_list_wavelength_requested = o_make.dict_clean_list_wavelength_requested
-	list_tof_expected = MakeShutterValueFile.convert_lambda_to_tof(
-			list_wavelength=dict_clean_list_wavelength_requested[list_wavelength_requested[0]],
-            detector_offset=detector_offset,
-            detector_sample_distance=detector_sample_distance,
-            output_units='s')
-
-	final_tof_frames_expected = [[TOF_FRAMES[0][0], list_tof_expected[0] - MIN_TOF_BETWEEN_FRAMES],
-	                             list_tof_expected,
-	                             [list_tof_expected[1] + MIN_TOF_BETWEEN_FRAMES, TOF_FRAMES[1][1]],
-	                             TOF_FRAMES[-1]]
-
-	print("final_tof_frames_calculated")
-	print(f"->> {final_tof_frames_calculated}")
-	print(f"->> {final_tof_frames_expected}")
-
-	assert len(final_tof_frames_calculated) == len(final_tof_frames_expected)
-	for _range_calculated, _range_expected in zip(final_tof_frames_calculated, final_tof_frames_expected):
-		assert _range_calculated[0] == _range_expected[0]
-		assert _range_calculated[1] == _range_expected[1]
-
-	# # test 2 wavelengths
-	# list_wavelength_requested = [3, 4]
-	# o_make.run(list_wavelength_requested=list_wavelength_requested)
-	# final_tof_frames_calculated = o_make.final_tof_frames
-	# final_tof_frames_expected = TOF_FRAMES
-	#
-	# assert len(final_tof_frames_calculated) == len(final_tof_frames_expected)
-	# for _range_calculated, _range_expected in zip(final_tof_frames_calculated, final_tof_frames_expected):
-	# 	assert _range_calculated[0] == _range_expected[0]
-	# 	assert _range_calculated[1] == _range_expected[1]
-
-
-# @pytest.mark.parametrize('list_wavelength_requested, epics_chopper_wavelength_range',
-#                          [([1, 2, 3], [1, 5]),
-#                           ([1, 10], [0.5, 8]),
-#                           ([1, 10], [1, 11]),
-#                           ([2, 10], [0.5, 10])])
-# def test_lambda_outside_epics_chopper_range_raise_error(list_wavelength_requested,
-#                                                         epics_chopper_wavelength_range):
-# 	detector_sample_distance = 1300
-# 	detector_offset = 6300
+# def test_set_tof_frames_case1():
+# 	# test 1 wavelength within the first range does not change the default TOF frame
+# 	output_folder = "/tmp/"
+# 	detector_offset = 6000  # micros
+# 	detector_sample_distance = 2100   # cm
+# 	epics_chopper_wavelength_range = [.1, 10]  # Angstroms
+# 	o_make = MakeShutterValueFile(detector_offset=detector_offset,
+# 	                              output_folder=output_folder,
+# 	                              detector_sample_distance=detector_sample_distance,
+# 	                              epics_chopper_wavelength_range=epics_chopper_wavelength_range)
+#
+# 	# test error raised if no dict passed
 # 	with pytest.raises(ValueError):
-# 		MakeShutterValueFile.realign_frames_with_tof_requested(
-# 			list_wavelength_requested=list_wavelength_requested,
-# 			detector_sample_distance=detector_sample_distance,
+# 		o_make.set_final_tof_frames()
+#
+# 	list_wavelength_requested = [1.7]
+# 	o_make.run(list_wavelength_requested=list_wavelength_requested)
+# 	final_tof_frames_calculated = o_make.final_tof_frames
+#
+# 	dict_clean_list_wavelength_requested = o_make.dict_clean_list_wavelength_requested
+# 	list_tof_expected = MakeShutterValueFile.convert_lambda_to_tof(
+# 			list_wavelength=dict_clean_list_wavelength_requested[list_wavelength_requested[0]],
 # 			detector_offset=detector_offset,
-# 			epics_chopper_wavelength_range=epics_chopper_wavelength_range)
+# 			detector_sample_distance=detector_sample_distance,
+# 			output_units='s')
+#
+# 	final_tof_frames_expected = TOF_FRAMES
+#
+# 	assert len(final_tof_frames_calculated) == len(final_tof_frames_expected)
+# 	for _range_calculated, _range_expected in zip(final_tof_frames_calculated, final_tof_frames_expected):
+# 		assert _range_calculated[0] == _range_expected[0]
+# 		assert _range_calculated[1] == _range_expected[1]
+#
+# def test_set_tof_frames_case2():
+# 	# test 1 wavelength across the first edge add 1 frame to final TOF_FRAMES
+# 	output_folder = "/tmp/"
+# 	detector_offset = 6000  # micros
+# 	detector_sample_distance = 2100  # cm
+# 	epics_chopper_wavelength_range = [.1, 10]  # Angstroms
+# 	o_make = MakeShutterValueFile(detector_offset=detector_offset,
+# 	                              output_folder=output_folder,
+# 	                              detector_sample_distance=detector_sample_distance,
+# 	                              epics_chopper_wavelength_range=epics_chopper_wavelength_range)
+#
+# 	# test error raised if no dict passed
+# 	with pytest.raises(ValueError):
+# 		o_make.set_final_tof_frames()
+#
+# 	list_wavelength_requested = [1.8]
+# 	o_make.run(list_wavelength_requested=list_wavelength_requested)
+# 	final_tof_frames_calculated = o_make.final_tof_frames
+#
+# 	dict_clean_list_wavelength_requested = o_make.dict_clean_list_wavelength_requested
+# 	list_tof_expected = MakeShutterValueFile.convert_lambda_to_tof(
+# 			list_wavelength=dict_clean_list_wavelength_requested[list_wavelength_requested[0]],
+#             detector_offset=detector_offset,
+#             detector_sample_distance=detector_sample_distance,
+#             output_units='s')
+#
+# 	final_tof_frames_expected = [[TOF_FRAMES[0][0], list_tof_expected[0] - MIN_TOF_BETWEEN_FRAMES],
+# 	                             list_tof_expected,
+# 	                             [list_tof_expected[1] + MIN_TOF_BETWEEN_FRAMES, TOF_FRAMES[1][1]],
+# 	                             TOF_FRAMES[-1]]
+#
+# 	assert len(final_tof_frames_calculated) == len(final_tof_frames_expected)
+# 	for _range_calculated, _range_expected in zip(final_tof_frames_calculated, final_tof_frames_expected):
+# 		assert _range_calculated[0] == _range_expected[0]
+# 		assert _range_calculated[1] == _range_expected[1]
+#
+# def test_set_tof_frames_case3():
+# 	# test 2 wavelengths  with 1 across the first edge will add 1 frame to final TOF_FRAMES
+# 	output_folder = "/tmp/"
+# 	detector_offset = 6000  # micros
+# 	detector_sample_distance = 2100  # cm
+# 	epics_chopper_wavelength_range = [.1, 10]  # Angstroms
+# 	o_make = MakeShutterValueFile(detector_offset=detector_offset,
+# 	                              output_folder=output_folder,
+# 	                              detector_sample_distance=detector_sample_distance,
+# 	                              epics_chopper_wavelength_range=epics_chopper_wavelength_range)
+#
+# 	# test error raised if no dict passed
+# 	with pytest.raises(ValueError):
+# 		o_make.set_final_tof_frames()
+#
+# 	list_wavelength_requested = [1.5, 2.0]
+# 	o_make.run(list_wavelength_requested=list_wavelength_requested)
+# 	final_tof_frames_calculated = o_make.final_tof_frames
+#
+# 	dict_clean_list_wavelength_requested = o_make.dict_clean_list_wavelength_requested
+#
+# 	print(f"dict_clean_list_wavelength_requested: {dict_clean_list_wavelength_requested}")
+#
+# 	list_tof_expected = MakeShutterValueFile.convert_lambda_to_tof(
+# 			list_wavelength=dict_clean_list_wavelength_requested[list_wavelength_requested[0]],
+# 			detector_offset=detector_offset,
+# 			detector_sample_distance=detector_sample_distance,
+# 			output_units='s')
+#
+# 	final_tof_frames_expected = [[TOF_FRAMES[0][0], list_tof_expected[0] - MIN_TOF_BETWEEN_FRAMES],
+# 	                             list_tof_expected,
+# 	                             [list_tof_expected[1] + MIN_TOF_BETWEEN_FRAMES, TOF_FRAMES[1][1]],
+# 	                             TOF_FRAMES[-1]]
+#
+# 	print("final_tof_frames_calculated")
+# 	print(f"->> {final_tof_frames_calculated}")
+# 	print(f"->> {final_tof_frames_expected}")
+#
+# 	assert len(final_tof_frames_calculated) == len(final_tof_frames_expected)
+# 	for _range_calculated, _range_expected in zip(final_tof_frames_calculated, final_tof_frames_expected):
+# 		assert _range_calculated[0] == _range_expected[0]
+# 		assert _range_calculated[1] == _range_expected[1]

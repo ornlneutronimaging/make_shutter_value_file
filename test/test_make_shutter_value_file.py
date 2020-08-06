@@ -356,8 +356,7 @@ def test_set_tof_frames_to_cover_lambda_requested():
 		assert _range_calculated[0] == _range_expected[0]
 		assert _range_calculated[1] == _range_expected[1]
 
-	assert False
-
+	
 # @pytest.mark.parametrize('list_wavelength_requested, epics_chopper_wavelength_range',
 #                          [([1, 2, 3], [1, 5]),
 #                           ([1, 10], [0.5, 8]),

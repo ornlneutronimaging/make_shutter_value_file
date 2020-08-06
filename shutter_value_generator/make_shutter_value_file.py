@@ -269,16 +269,12 @@ class MakeShutterValueFile:
 				output_units='s')
 		final_tof_frames = copy.deepcopy(TOF_FRAMES)
 
-		print(f"final_tof_frames: {final_tof_frames}")
-		print(f"dict_list_tof_requested: {dict_list_tof_requested.keys()}")
-
 		index_tof_requested = 0
 		list_tof_requested_keys = list(dict_list_tof_requested.keys())
 		while index_tof_requested < len(list_tof_requested_keys):
 
 			[_left_tof_requested, _right_tof_requested] = dict_list_tof_requested[list_tof_requested_keys[
 				index_tof_requested]]
-			print(f"left_tof_requested: {_left_tof_requested}, right_tof_requested: {_right_tof_requested}")
 
 			index_tof_requested += 1
 

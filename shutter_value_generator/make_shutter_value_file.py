@@ -125,14 +125,37 @@ class MakeShutterValueFile:
 					dict_list_lambda_requested=self.dict_clean_list_wavelength_requested)
 
 	def make_sure_list_wavelength_requested_can_be_measure(self, list_wavelength_requested=None):
+		"""
+		This routine makes sure that any of the lambda the user wants to measure are not outside the
+		default time spectra file, and are above the minimum measurable lambda (calculated using detector offset and
+		distance detector sample provided)
 
-		# make sure lambda is above minimum lambda we can measure with the detector offset defined
+		:param list_wavelength_requested:
+		:return:
+		"""
+
+		min_tof_from_default_time_spectra = TOF_FRAMES[0][0]
+		max_tof_from_default_time_spectra = TOF_FRAMES[-1][1]
+
+		min_lambda = self.convert_tof_to_lambda(tof=min_tof_from_default_time_spectra,
+		                                        detector_offset=self.detector_offset,
+		                                        detector_sample_distance=self.detector_sample_distance)
+		max_lambda = self.convert_tof_to_lambda(tof=max_tof_from_default_time_spectra,
+		                                        detector_offset=self.detector_offset,
+		                                        detector_sample_distance=self.detector_sample_distance)
+
 		for _lambda in list_wavelength_requested:
+
+			# make sure lambda is above minimum lambda we can measure with the detector offset defined
 			if _lambda - MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME < self.minimum_measurable_lambda:
 				raise ValueError("Lambda too small to too close to start to be measurable")
 
-		# make sure lambda is within min and max tof defined in default shutter value
+			# make sure lambda is within min and max tof defined in default shutter value
+			if _lambda < min_lambda:
+				raise ValueError("Time spectra minimum value does not allow to get this lambda: {}".format(_lambda))
 
+			if _lambda > max_lambda:
+				raise ValueError("Time spectra maximum value does not allow to get this lambda: {}".format(_lambda))
 
 	def calculate_minimum_measurable_lambda(self):
 		if self.detector_sample_distance and self.detector_offset:

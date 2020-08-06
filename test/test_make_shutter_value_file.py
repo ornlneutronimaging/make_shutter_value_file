@@ -167,6 +167,8 @@ def test_error_raised_if_lambda_outside_time_spectra():
 	                              output_folder=output_folder,
 	                              detector_sample_distance=detector_sample_distance,
 	                              epics_chopper_wavelength_range=epics_chopper_wavelength_range)
+	with pytest.raises(ValueError):
+		o_make.run(list_wavelength_requested=[18])
 
 def test_calculate_min_tof_peak_value_from_edge_of_frame():
 	output_folder = "/tmp/"

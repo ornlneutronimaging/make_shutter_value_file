@@ -135,6 +135,7 @@ class MakeShutterValueFile:
 	@staticmethod
 	def get_clock_cycle_table():
 		full_file_name = Path(__file__).parent / CLOCK_CYCLE_FILE
+		print(f"full file name is: {full_file_name}")
 		assert Path(full_file_name).exists()
 
 		clock_cycle_data = pd.read_csv(full_file_name,

@@ -13,6 +13,7 @@ from shutter_value_generator.make_shutter_value_file import DEFAULT_SHUTTER_VALU
 from shutter_value_generator.make_shutter_value_file import MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME
 from shutter_value_generator.make_shutter_value_file import TOF_FRAMES
 from shutter_value_generator.make_shutter_value_file import COEFF
+from shutter_value_generator.make_shutter_value_file import MIN_TOF_BETWEEN_FRAMES
 
 def make_tmp_ascii_filename():
 	ascii_filename = NamedTemporaryFile(prefix='TestingShutterValue', suffix='.txt').name
@@ -324,37 +325,75 @@ def test_set_tof_frames_to_cover_lambda_requested():
 	output_folder = "/tmp/"
 	detector_offset = 6000  # micros
 	detector_sample_distance = 2100   # cm
-	epics_chopper_wavelength_range = [1, 10]  # Angstroms
+	epics_chopper_wavelength_range = [.1, 10]  # Angstroms
 	o_make = MakeShutterValueFile(detector_offset=detector_offset,
-	                             output_folder=output_folder,
-	                             detector_sample_distance=detector_sample_distance,
-	                             epics_chopper_wavelength_range=epics_chopper_wavelength_range)
+	                              output_folder=output_folder,
+	                              detector_sample_distance=detector_sample_distance,
+	                              epics_chopper_wavelength_range=epics_chopper_wavelength_range)
 
 	# test error raised if no dict passed
 	with pytest.raises(ValueError):
 		o_make.set_final_tof_frames()
 
 	# test 1 wavelength within the first range does not change the default TOF frame
-	list_wavelength_requested = [3]
+	list_wavelength_requested = [1.3]
 	o_make.run(list_wavelength_requested=list_wavelength_requested)
 	final_tof_frames_calculated = o_make.final_tof_frames
+
+	dict_clean_list_wavelength_requested = o_make.dict_clean_list_wavelength_requested
+	list_tof_expected = MakeShutterValueFile.convert_lambda_to_tof(
+			list_wavelength=dict_clean_list_wavelength_requested[list_wavelength_requested[0]],
+			detector_offset=detector_offset,
+			detector_sample_distance=detector_sample_distance,
+			output_units='s')
+
 	final_tof_frames_expected = TOF_FRAMES
+
+	print("final_tof_frames_calculated")
+	print(f"->> {final_tof_frames_calculated}")
+	print(f"->> {final_tof_frames_expected}")
 
 	assert len(final_tof_frames_calculated) == len(final_tof_frames_expected)
 	for _range_calculated, _range_expected in zip(final_tof_frames_calculated, final_tof_frames_expected):
 		assert _range_calculated[0] == _range_expected[0]
 		assert _range_calculated[1] == _range_expected[1]
 
-	# test 2 wavelengths
-	list_wavelength_requested = [3, 4]
+	# test 1 wavelength across the first edge add 1 frame to final TOF_FRAMES
+	list_wavelength_requested = [1.8]
 	o_make.run(list_wavelength_requested=list_wavelength_requested)
 	final_tof_frames_calculated = o_make.final_tof_frames
-	final_tof_frames_expected = TOF_FRAMES
+
+	dict_clean_list_wavelength_requested = o_make.dict_clean_list_wavelength_requested
+	list_tof_expected = MakeShutterValueFile.convert_lambda_to_tof(
+			list_wavelength=dict_clean_list_wavelength_requested[list_wavelength_requested[0]],
+            detector_offset=detector_offset,
+            detector_sample_distance=detector_sample_distance,
+            output_units='s')
+
+	final_tof_frames_expected = [[TOF_FRAMES[0][0], list_tof_expected[0] - MIN_TOF_BETWEEN_FRAMES],
+	                             list_tof_expected,
+	                             [list_tof_expected[1] + MIN_TOF_BETWEEN_FRAMES, TOF_FRAMES[1][1]],
+	                             TOF_FRAMES[-1]]
+
+	print("final_tof_frames_calculated")
+	print(f"->> {final_tof_frames_calculated}")
+	print(f"->> {final_tof_frames_expected}")
 
 	assert len(final_tof_frames_calculated) == len(final_tof_frames_expected)
 	for _range_calculated, _range_expected in zip(final_tof_frames_calculated, final_tof_frames_expected):
 		assert _range_calculated[0] == _range_expected[0]
 		assert _range_calculated[1] == _range_expected[1]
+
+	# # test 2 wavelengths
+	# list_wavelength_requested = [3, 4]
+	# o_make.run(list_wavelength_requested=list_wavelength_requested)
+	# final_tof_frames_calculated = o_make.final_tof_frames
+	# final_tof_frames_expected = TOF_FRAMES
+	#
+	# assert len(final_tof_frames_calculated) == len(final_tof_frames_expected)
+	# for _range_calculated, _range_expected in zip(final_tof_frames_calculated, final_tof_frames_expected):
+	# 	assert _range_calculated[0] == _range_expected[0]
+	# 	assert _range_calculated[1] == _range_expected[1]
 
 
 # @pytest.mark.parametrize('list_wavelength_requested, epics_chopper_wavelength_range',

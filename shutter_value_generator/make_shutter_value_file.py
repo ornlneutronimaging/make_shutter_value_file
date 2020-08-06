@@ -5,7 +5,7 @@ from pathlib import Path
 from collections import OrderedDict
 import copy
 
-DELTA_TIME_BETWEEN_FRAMES = 0.32e-6  # s
+# DELTA_TIME_BETWEEN_FRAMES = 0.32e-6  # s
 CLOCK_CYCLE_FILE = 'clock_cycle.txt'
 SHUTTER_VALUE_FILENAME = "ShutterValues.txt"
 
@@ -17,6 +17,7 @@ TOF_FRAMES = [[1e-6, 2.5e-3],
               [2.9e-3, 5.8e-3],
               [6.2e-3, 15.9e-3]]
 MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME = 0.3  # Angstroms
+MIN_TOF_BETWEEN_FRAMES = TOF_FRAMES[1][0] - TOF_FRAMES[0][1]
 
 RESONANCE_SHUTTER_VALUES = "1e-6\t320e-6\t3\t0.16"
 DEFAULT_SHUTTER_VALUES = "1e-6\t2.5e-3\t5\t10.24\n2.9e-3\t5.8e-3\t6\t10.24\n6.2e-3\t15.9e-3\t7\t10.24"
@@ -97,11 +98,11 @@ class MakeShutterValueFile:
 					epics_chopper_wavelength_range=self.epics_chopper_wavelength_range)
 			dict_list_wavelength_requested = MakeShutterValueFile.initialize_list_of_wavelength_requested_dictionary(
 					list_wavelength_requested=list_wavelength_requested)
-			dict_clean_list_wavelength_requested = \
+			self.dict_clean_list_wavelength_requested = \
 				MakeShutterValueFile.combine_wavelength_requested_too_close_to_each_other(
 						dict_list_wavelength_requested=dict_list_wavelength_requested)
 			self.final_tof_frames = self.set_final_tof_frames(
-					dict_list_lambda_requested=dict_clean_list_wavelength_requested)
+					dict_list_lambda_requested=self.dict_clean_list_wavelength_requested)
 
 	def convert_lambda_dict_to_tof(self, dict_list_lambda_requested=None, output_units='micros'):
 		dict_list_tof_requested = OrderedDict()
@@ -268,6 +269,9 @@ class MakeShutterValueFile:
 				dict_list_lambda_requested=dict_list_lambda_requested,
 				output_units='s')
 		final_tof_frames = copy.deepcopy(TOF_FRAMES)
+		print(f"type(final_tof_frames): {type(final_tof_frames)}")
+
+		print(f"MIN_TOF_BETWEEN_FRAMES: {MIN_TOF_BETWEEN_FRAMES}")
 
 		index_tof_requested = 0
 		list_tof_requested_keys = list(dict_list_tof_requested.keys())
@@ -275,6 +279,37 @@ class MakeShutterValueFile:
 
 			[_left_tof_requested, _right_tof_requested] = dict_list_tof_requested[list_tof_requested_keys[
 				index_tof_requested]]
+
+			print(f"tof_requested: [{_left_tof_requested}, {_right_tof_requested}]")
+
+			for index_final_tof_frames, [_left_final_tof, _right_final_tof] in enumerate(final_tof_frames):
+
+				print(f"final_tof: [{_left_final_tof}, {_right_final_tof}]")
+
+				if (_left_tof_requested >= _left_final_tof) and (_right_tof_requested <= _right_final_tof):
+					# tof range requested full fit inside one of the final tof frame, let's move on
+					# to the next tof range requested
+
+					print("-> tof requested fit perfectly inside this final tof!")
+					break
+
+				elif (_left_tof_requested < _left_final_tof):
+					# tof requested is overlapping with the left gap of the final tof range
+					print("-> tof requested is overlapping on the left!")
+					break
+
+				else:
+					print("-> tof requested is overlapping on the right!")
+					# delta_offset = _right_tof_requested - _right_final_tof
+					final_tof_frames[index_final_tof_frames] = [_left_final_tof, _left_tof_requested - MIN_TOF_BETWEEN_FRAMES]
+					final_tof_frames.insert(index_final_tof_frames+1, [_left_tof_requested, _right_tof_requested])
+					if index_final_tof_frames < (len(final_tof_frames) - 2):
+						# if it's not the last final tof frame, we need to shift the left range of the next frame
+						# by the same offset we pushed the current right range
+						[_, _next_right_final_tof] = final_tof_frames[index_final_tof_frames + 2]
+						final_tof_frames[index_final_tof_frames+2] = [_right_tof_requested + MIN_TOF_BETWEEN_FRAMES,
+						                                            _next_right_final_tof]
+					break
 
 			index_tof_requested += 1
 

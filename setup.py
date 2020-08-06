@@ -17,7 +17,7 @@ setup(
     author="Jean Bilheux",
     author_email="bilheuxjm@ornl.gov",
     packages=find_packages(exclude=['tests', 'notebooks']),
-    package_data={'ClockCycleFile': ['shutter_value_generator/clock_cycle.txt']},
+    package_data={'shutter_value_generator': ['clock_cycle.txt']},
     include_package_data=True,
     test_suite='tests',
     install_requires=[

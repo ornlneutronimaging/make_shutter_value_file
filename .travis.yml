@@ -23,6 +23,7 @@ install:
   - conda create -n testenv pip nose python=$TRAVIS_PYTHON_VERSION numpy
 #  - conda install --yes --file requirements.conda
   - source activate testenv
+  - conda install pandas
   - pip install -U pytest
   - pip install pytest-cov
   - pip install codecov

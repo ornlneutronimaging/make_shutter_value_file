@@ -158,18 +158,6 @@ def test_convert_tof_to_lambda():
 #
 # 	assert False
 
-def test_error_raised_if_lambda_outside_time_spectra():
-	output_folder = "/tmp/"
-	detector_offset = 6500  # micros
-	detector_sample_distance = 2100  # cm
-	epics_chopper_wavelength_range = [MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME, 20]  # Angstroms
-	o_make = MakeShutterValueFile(detector_offset=detector_offset,
-	                              output_folder=output_folder,
-	                              detector_sample_distance=detector_sample_distance,
-	                              epics_chopper_wavelength_range=epics_chopper_wavelength_range)
-	with pytest.raises(ValueError):
-		o_make.run(list_wavelength_requested=[18])
-
 def test_calculate_min_tof_peak_value_from_edge_of_frame():
 	output_folder = "/tmp/"
 	detector_offset = 6500  # micros
@@ -185,19 +173,6 @@ def test_calculate_min_tof_peak_value_from_edge_of_frame():
 	                                                                       detector_sample_distance=detector_sample_distance)
 	assert np.abs(min_tof_peak_value_from_edge_of_frame_expected[0] - min_tof_peak_value_from_edge_of_frame_calculated) \
 	       < TOLERANCE
-
-def test_error_raised_if_lambda_too_small():
-	output_folder = "/tmp/"
-	detector_offset = 6500  # micros
-	detector_sample_distance = 2100  # cm
-	epics_chopper_wavelength_range = [MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME, 20]  # Angstroms
-	o_make = MakeShutterValueFile(detector_offset=detector_offset,
-	                             output_folder=output_folder,
-	                             detector_sample_distance=detector_sample_distance,
-	                             epics_chopper_wavelength_range=epics_chopper_wavelength_range)
-	list_of_wavelength_requested = [1, 5, 10, 20]
-	with pytest.raises(ValueError):
-		o_make.run(list_wavelength_requested=list_of_wavelength_requested)
 
 @pytest.mark.parametrize('file_contain', [("entry1, entry2, entry3"),
                                           "entry1, entry2, entry3\nentry4, entry5, entry6"])
@@ -235,90 +210,18 @@ def test_lambda_to_close_to_edge_of_epics_chopper_raise_error(list_wavelength_re
 		MakeShutterValueFile.check_overlap_wavelength_requested_with_chopper_settings(list_wavelength_requested=list_wavelength_requested,
 								                                                     epics_chopper_wavelength_range=epics_chopper_wavelength_range)
 
-def test_initialize_dictionary_of_list_of_wavelength_requested():
-	list_of_wavelength_requested = [2, 5, 10, 20]
-	dict_list_wavelength_requested = MakeShutterValueFile.initialize_list_of_wavelength_requested_dictionary(
-			list_wavelength_requested=list_of_wavelength_requested)
-	dict_list_wavelength_expected = OrderedDict()
-	for _request in list_of_wavelength_requested:
-		_left = np.max([0, _request - MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME])
-		_right = np.max([0, _request + MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME])
-		dict_list_wavelength_expected[_request] = [_left, _right]
-
-	for _key in dict_list_wavelength_requested.keys():
-		assert dict_list_wavelength_expected[_key] == dict_list_wavelength_requested[_key]
-
-def test_combine_wavelength_requested_too_close_to_each_other():
-	# case 1 - only 1 lambda
-	list_wavelength_requested = [5]
-	dict_list_wavelength_requested = MakeShutterValueFile.initialize_list_of_wavelength_requested_dictionary(
-			list_wavelength_requested=list_wavelength_requested)
-	before_cleaning = copy.deepcopy(dict_list_wavelength_requested)
-	dict_list_wavelength_returned = MakeShutterValueFile.combine_wavelength_requested_too_close_to_each_other(
-			dict_list_wavelength_requested=dict_list_wavelength_requested)
-	assert dict_list_wavelength_returned == before_cleaning
-
-	# case 2 - 2 lambda that do not need any combine
-	list_wavelength_requested = [5, 6]
-	dict_list_wavelength_requested = MakeShutterValueFile.initialize_list_of_wavelength_requested_dictionary(
-			list_wavelength_requested=list_wavelength_requested)
-	dict_list_wavelength_returned = MakeShutterValueFile.combine_wavelength_requested_too_close_to_each_other(
-			dict_list_wavelength_requested=dict_list_wavelength_requested)
-	assert dict_list_wavelength_requested == dict_list_wavelength_returned
-
-	# case 3 - 2 lambda need to be combined
-	list_wavelength_requested = [5, 5.1, 6]
-	dict_list_wavelength_requested = MakeShutterValueFile.initialize_list_of_wavelength_requested_dictionary(
-			list_wavelength_requested=list_wavelength_requested)
-	dict_list_wavelength_returned = MakeShutterValueFile.combine_wavelength_requested_too_close_to_each_other(
-			dict_list_wavelength_requested=dict_list_wavelength_requested)
-	dict_list_wavelength_expected = OrderedDict()
-	dict_list_wavelength_expected[5.05] = [5 - MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME,
-	                                       5.1 + MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME]
-	dict_list_wavelength_expected[6] = [6 - MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME,
-	                                    6 + MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME]
-	assert dict_list_wavelength_returned.keys() == dict_list_wavelength_expected.keys()
-	for _key in dict_list_wavelength_expected.keys():
-		_array_expected = dict_list_wavelength_expected[_key]
-		_array_returned = dict_list_wavelength_returned[_key]
-		for _exp, _ret in zip(_array_expected, _array_returned):
-			assert np.abs(_exp - _ret) < TOLERANCE
-
-	# case 4 - 3 lambda to combine
-	list_wavelength_requested = [5, 5.1, 5.2, 6]
-	dict_list_wavelength_requested = MakeShutterValueFile.initialize_list_of_wavelength_requested_dictionary(
-			list_wavelength_requested=list_wavelength_requested)
-	dict_list_wavelength_returned = MakeShutterValueFile.combine_wavelength_requested_too_close_to_each_other(
-			dict_list_wavelength_requested=dict_list_wavelength_requested)
-	dict_list_wavelength_expected = OrderedDict()
-	dict_list_wavelength_expected[5.125] = [5 - MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME,
-	                                        5.2 + MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME]
-	dict_list_wavelength_expected[6] = [6 - MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME,
-	                                    6 + MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME]
-	assert dict_list_wavelength_returned.keys() == dict_list_wavelength_expected.keys()
-	for _key in dict_list_wavelength_expected.keys():
-		_array_expected = dict_list_wavelength_expected[_key]
-		_array_returned = dict_list_wavelength_returned[_key]
-		for _exp, _ret in zip(_array_expected, _array_returned):
-			assert np.abs(_exp - _ret) < TOLERANCE
-
-	# case 5 - 2 lambda to combine as too close because of safety wavelength_offset
-	list_wavelength_requested = [5, 6]
-	safety_wavelength_offset = 1
-	dict_list_wavelength_requested = MakeShutterValueFile.initialize_list_of_wavelength_requested_dictionary(
-			list_wavelength_requested=list_wavelength_requested)
-	dict_list_wavelength_returned = MakeShutterValueFile.combine_wavelength_requested_too_close_to_each_other(
-			dict_list_wavelength_requested=dict_list_wavelength_requested,
-			safety_wavelength_offset=safety_wavelength_offset)
-	dict_list_wavelength_expected = OrderedDict()
-	dict_list_wavelength_expected[5.5] = [5 - MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME,
-	                                      6 + MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME]
-	assert dict_list_wavelength_returned.keys() == dict_list_wavelength_expected.keys()
-	for _key in dict_list_wavelength_expected.keys():
-		_array_expected = dict_list_wavelength_expected[_key]
-		_array_returned = dict_list_wavelength_returned[_key]
-		for _exp, _ret in zip(_array_expected, _array_returned):
-			assert np.abs(_exp - _ret) < TOLERANCE
+# def test_initialize_dictionary_of_list_of_wavelength_requested():
+# 	list_of_wavelength_requested = [2, 5, 10, 20]
+# 	dict_list_wavelength_requested = MakeShutterValueFile.initialize_list_of_wavelength_requested_dictionary(
+# 			list_wavelength_requested=list_of_wavelength_requested)
+# 	dict_list_wavelength_expected = OrderedDict()
+# 	for _request in list_of_wavelength_requested:
+# 		_left = np.max([0, _request - MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME])
+# 		_right = np.max([0, _request + MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME])
+# 		dict_list_wavelength_expected[_request] = [_left, _right]
+#
+# 	for _key in dict_list_wavelength_requested.keys():
+# 		assert dict_list_wavelength_expected[_key] == dict_list_wavelength_requested[_key]
 
 def test_sort_dictionary_by_keys():
 	dict1 = OrderedDict()

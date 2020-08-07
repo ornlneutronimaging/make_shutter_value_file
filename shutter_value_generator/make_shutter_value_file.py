@@ -89,7 +89,7 @@ class MakeShutterValueFile:
 		self.epics_chopper_wavelength_range = epics_chopper_wavelength_range
 		self.minimum_measurable_lambda = self.calculate_minimum_measurable_lambda()
 
-	def run(self, list_wavelength_requested=None):
+	def run(self, list_shutter_dead_time=None):
 		filename = Path(self.output_folder) / SHUTTER_VALUE_FILENAME
 		if self.resonance_mode:
 			resonance_shutter_value_ascii = RESONANCE_SHUTTER_VALUES
@@ -100,29 +100,31 @@ class MakeShutterValueFile:
 			MakeShutterValueFile.make_ascii_file_from_string(text=default_shutter_value_ascii,
 			                                                filename=filename)
 		else:
-
-			self.make_sure_list_wavelength_requested_can_be_measure(list_wavelength_requested=list_wavelength_requested)
-
-			MakeShutterValueFile.check_overlap_wavelength_requested_with_chopper_settings(
-					list_wavelength_requested=list_wavelength_requested,
-					epics_chopper_wavelength_range=self.epics_chopper_wavelength_range)
-
-			dict_list_wavelength_requested = MakeShutterValueFile.initialize_list_of_wavelength_requested_dictionary(
-					list_wavelength_requested=list_wavelength_requested)
-
-			self.dict_clean_list_wavelength_requested = \
-				MakeShutterValueFile.combine_wavelength_requested_too_close_to_each_other(
-						dict_list_wavelength_requested=dict_list_wavelength_requested)
-
-			
+			pass
 
 
-
-
-
-
-			self.final_tof_frames = self.set_final_tof_frames(
-					dict_list_lambda_requested=self.dict_clean_list_wavelength_requested)
+			# self.make_sure_list_wavelength_requested_can_be_measure(list_wavelength_requested=list_wavelength_requested)
+			#
+			# MakeShutterValueFile.check_overlap_wavelength_requested_with_chopper_settings(
+			# 		list_wavelength_requested=list_wavelength_requested,
+			# 		epics_chopper_wavelength_range=self.epics_chopper_wavelength_range)
+			#
+			# dict_list_wavelength_requested = MakeShutterValueFile.initialize_list_of_wavelength_requested_dictionary(
+			# 		list_wavelength_requested=list_wavelength_requested)
+			#
+			# self.dict_clean_list_wavelength_requested = \
+			# 	MakeShutterValueFile.combine_wavelength_requested_too_close_to_each_other(
+			# 			dict_list_wavelength_requested=dict_list_wavelength_requested)
+			#
+			#
+			#
+			#
+			#
+			#
+			#
+			#
+			# self.final_tof_frames = self.set_final_tof_frames(
+			# 		dict_list_lambda_requested=self.dict_clean_list_wavelength_requested)
 
 	def make_sure_list_wavelength_requested_can_be_measure(self, list_wavelength_requested=None):
 		"""

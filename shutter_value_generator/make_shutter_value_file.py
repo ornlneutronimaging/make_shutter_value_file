@@ -15,7 +15,7 @@ COEFF = (H / MN) * 1e6
 TOF_FRAMES = [[1e-6, 2.5e-3],
               [2.9e-3, 5.8e-3],
               [6.2e-3, 15.9e-3]]
-DEFAULT_LIST_SHUTTER_DEAD_TIME = [np.mean([TOF_FRAMES[0][1], TOF_FRAMES[1][0]]),
+DEFAULT_list_lambda_dead_time = [np.mean([TOF_FRAMES[0][1], TOF_FRAMES[1][0]]),
                                   np.mean([TOF_FRAMES[1][1], TOF_FRAMES[2][0]])]
 MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME = 0.3  # Angstroms
 MIN_TOF_BETWEEN_FRAMES = TOF_FRAMES[1][0] - TOF_FRAMES[0][1]
@@ -91,20 +91,37 @@ class MakeShutterValueFile:
 		self.epics_chopper_wavelength_range = epics_chopper_wavelength_range
 		# self.minimum_measurable_lambda = self.calculate_minimum_measurable_lambda()
 
-	def run(self, list_shutter_dead_time=None):
+	def run(self, list_lambda_dead_time=None):
+		"""
+		
+		:param list_lambda_dead_time: Ideally the user will provide a minimum of 2 or 3 equally spaced in the
+		full range lambda. Those lambda will corresponds to the dead time of the MCP.  
+		:return: 
+		"""
 		filename = Path(self.output_folder) / SHUTTER_VALUE_FILENAME
 		if self.resonance_mode:
 			resonance_shutter_value_ascii = RESONANCE_SHUTTER_VALUES
 			MakeShutterValueFile.make_ascii_file_from_string(text=resonance_shutter_value_ascii,
 			                                                filename=filename)
-		elif self.default_values or (list_shutter_dead_time is None):
+		elif self.default_values or (list_lambda_dead_time is None):
 			default_shutter_value_ascii = DEFAULT_SHUTTER_VALUES
 			MakeShutterValueFile.make_ascii_file_from_string(text=default_shutter_value_ascii,
 			                                                filename=filename)
 		else:
 			# user needs to provide at least 2 dead_time_lambda
-			if not type(list_shutter_dead_time) is list:
-				raise ValueError("list_shutter_dead_time must be a list of at least 2 elements!")
+			if not type(list_lambda_dead_time) is list:
+				raise ValueError("list_lambda_dead_time must be a list of at least 2 elements!")
+
+			if len(list_lambda_dead_time) < 2:
+				raise ValueError("list_lambda_dead_time should contain at least 2 dead lambda values!")
+
+			list_tof_dead_time = MakeShutterValueFile.convert_lambda_to_tof(list_wavelength=list_lambda_dead_time,
+			                                                                detector_offset=self.detector_offset,
+			                                                                detector_sample_distance=self.detector_sample_distance,
+			                                                                output_units='s')
+
+
+			
 
 
 	# self.make_sure_list_wavelength_requested_can_be_measure(list_wavelength_requested=list_wavelength_requested)

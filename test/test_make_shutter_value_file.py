@@ -225,7 +225,7 @@ def test_create_default_shutter_value_file_when_no_lambda_provided():
 	file_contain_expected = DEFAULT_SHUTTER_VALUES
 	assert file_contain_created == file_contain_expected
 
-def test_create_default_shutter_value_file_when_no_list_shutter_dead_time_provided():
+def test_create_default_shutter_value_file_when_no_list_lambda_dead_time_provided():
 	temp_dir = gettempdir()
 	detector_offset = 6000  # micros
 	detector_sample_distance = 2100   # cm
@@ -243,7 +243,7 @@ def test_create_default_shutter_value_file_when_no_list_shutter_dead_time_provid
 	file_contain_expected = DEFAULT_SHUTTER_VALUES
 	assert file_contain_created == file_contain_expected
 
-def test_list_shutter_dead_time_at_least_2_elements():
+def test_list_lambda_dead_time_at_least_2_elements():
 	output_folder = "/tmp/"
 	detector_offset = 6000  # micros
 	detector_sample_distance = 2100   # cm
@@ -253,7 +253,10 @@ def test_list_shutter_dead_time_at_least_2_elements():
 	                             detector_sample_distance=detector_sample_distance,
 	                             epics_chopper_wavelength_range=epics_chopper_wavelength_range)
 	with pytest.raises(ValueError):
-		o_make.run(list_shutter_dead_time=10)
+		o_make.run(list_lambda_dead_time=10)
+
+	with pytest.raises(ValueError):
+		o_make.run(list_lambda_dead_time=[10])
 
 
 # def test_convert_lambda_dict_to_tof():
@@ -293,7 +296,7 @@ def test_list_shutter_dead_time_at_least_2_elements():
 # 		assert np.abs(list_tof_expected[0] - list_tof_returned[0]) < TOLERANCE
 # 		assert np.abs(list_tof_expected[1] - list_tof_returned[1]) < TOLERANCE
 
-# def test_default_list_shutter_dead_time():
+# def test_default_list_lambda_dead_time():
 # 	output_folder = "/tmp/"
 # 	detector_offset = 6000  # micros
 # 	detector_sample_distance = 2100   # cm
@@ -303,13 +306,13 @@ def test_list_shutter_dead_time_at_least_2_elements():
 # 	                             detector_sample_distance=detector_sample_distance,
 # 	                             epics_chopper_wavelength_range=epics_chopper_wavelength_range)
 # 	o_make.run()
-# 	default_list_shutter_dead_time = o_make.list_shutter_dead_time
-# 	default_list_shutter_dead_time_expected = [np.mean(TOF_FRAMES[0][1], TOF_FRAMES[1][0]),
+# 	default_list_lambda_dead_time = o_make.list_lambda_dead_time
+# 	default_list_lambda_dead_time_expected = [np.mean(TOF_FRAMES[0][1], TOF_FRAMES[1][0]),
 # 	                                           np.mean(TOF_FRAMES[1][1], TOF_FRAMES[2][0])]
 #
-# 	assert len(default_list_shutter_dead_time) == len(default_list_shutter_dead_time_expected)
-# 	for _dead_time_calculated, _dead_time_expected in zip(default_list_shutter_dead_time,
-# 	                                                      default_list_shutter_dead_time_expected):
+# 	assert len(default_list_lambda_dead_time) == len(default_list_lambda_dead_time_expected)
+# 	for _dead_time_calculated, _dead_time_expected in zip(default_list_lambda_dead_time,
+# 	                                                      default_list_lambda_dead_time_expected):
 # 		assert _dead_time_calculated == _dead_time_expected
 
 

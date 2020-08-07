@@ -15,8 +15,8 @@ COEFF = (H / MN) * 1e6
 TOF_FRAMES = [[1e-6, 2.5e-3],
               [2.9e-3, 5.8e-3],
               [6.2e-3, 15.9e-3]]
-DEFAULT_LIST_SHUTTER_DEAD_TIME = [np.mean(TOF_FRAMES[0][1], TOF_FRAMES[1][0]),
-                                  np.mean(TOF_FRAMES[1][1], TOF_FRAMES[2][0])]
+DEFAULT_LIST_SHUTTER_DEAD_TIME = [np.mean([TOF_FRAMES[0][1], TOF_FRAMES[1][0]]),
+                                  np.mean([TOF_FRAMES[1][1], TOF_FRAMES[2][0]])]
 MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME = 0.3  # Angstroms
 MIN_TOF_BETWEEN_FRAMES = TOF_FRAMES[1][0] - TOF_FRAMES[0][1]
 
@@ -93,7 +93,7 @@ class MakeShutterValueFile:
 
 	def run(self, list_shutter_dead_time=None):
 		filename = Path(self.output_folder) / SHUTTER_VALUE_FILENAME
-		if self.resonance_mode:
+		if self.resonance_mode or (list_shutter_dead_time is None):
 			resonance_shutter_value_ascii = RESONANCE_SHUTTER_VALUES
 			MakeShutterValueFile.make_ascii_file_from_string(text=resonance_shutter_value_ascii,
 			                                                filename=filename)
@@ -102,10 +102,10 @@ class MakeShutterValueFile:
 			MakeShutterValueFile.make_ascii_file_from_string(text=default_shutter_value_ascii,
 			                                                filename=filename)
 		else:
-			self.list_shutter_dead_time = DEFAULT_LIST_SHUTTER_DEAD_TIME
+			pass
 
 
-			# self.make_sure_list_wavelength_requested_can_be_measure(list_wavelength_requested=list_wavelength_requested)
+	# self.make_sure_list_wavelength_requested_can_be_measure(list_wavelength_requested=list_wavelength_requested)
 			#
 			# MakeShutterValueFile.check_overlap_wavelength_requested_with_chopper_settings(
 			# 		list_wavelength_requested=list_wavelength_requested,

@@ -137,26 +137,6 @@ def test_convert_tof_to_lambda():
 	                                        detector_sample_distance=detector_sample_distance)
 	assert np.abs(lambda_expected[0] - lambda_returned) < TOLERANCE
 
-# def test_remove_me():
-# 	detector_offset = 6500  # micros
-# 	detector_sample_distance = 2100  # cm
-# 	TOF_FRAMES = [[1e-6, 2.5e-3],
-# 	              [2.9e-3, 5.8e-3],
-# 	              [6.2e-3, 15.9e-3]]
-# 	for _frame in TOF_FRAMES:
-# 		print(_frame)
-# 		_left_tof = _frame[0] * 1e6
-# 		_right_tof = _frame[1] * 1e6
-# 		left_lambda = MakeShutterValueFile.convert_tof_to_lambda(tof=_left_tof,
-# 	                                                                detector_offset=detector_offset,
-# 	                                                                detector_sample_distance=detector_sample_distance)
-# 		right_lambda = MakeShutterValueFile.convert_tof_to_lambda(tof=_right_tof,
-# 	                                                                detector_offset=detector_offset,
-# 	                                                                detector_sample_distance=detector_sample_distance)
-# 		print(f"going from {left_lambda} to {right_lambda}")
-#
-# 	assert False
-
 # def test_calculate_min_tof_peak_value_from_edge_of_frame():
 # 	output_folder = "/tmp/"
 # 	detector_offset = 6500  # micros
@@ -234,7 +214,7 @@ def test_create_shutter_value_for_resonance_mode():
 def test_create_default_shutter_value_file_when_no_lambda_provided():
 	temp_dir = gettempdir()
 	o_make = MakeShutterValueFile(output_folder=temp_dir,
-	                             default_values=True)
+	                              default_values=True)
 	o_make.run()
 
 	file_created_expected = Path(temp_dir) / "ShutterValues.txt"
@@ -244,6 +224,37 @@ def test_create_default_shutter_value_file_when_no_lambda_provided():
 
 	file_contain_expected = DEFAULT_SHUTTER_VALUES
 	assert file_contain_created == file_contain_expected
+
+def test_create_default_shutter_value_file_when_no_list_shutter_dead_time_provided():
+	temp_dir = gettempdir()
+	detector_offset = 6000  # micros
+	detector_sample_distance = 2100   # cm
+	epics_chopper_wavelength_range = [2, 10]  # Angstroms
+	o_make = MakeShutterValueFile(detector_offset=detector_offset,
+	                             output_folder=temp_dir,
+	                             detector_sample_distance=detector_sample_distance,
+	                             epics_chopper_wavelength_range=epics_chopper_wavelength_range)
+	o_make.run()
+	file_created_expected = Path(temp_dir) / "ShutterValues.txt"
+	with open(file_created_expected, 'r') as f:
+		file_contain_created = f.readlines()
+	file_contain_created = "".join(file_contain_created)
+
+	file_contain_expected = DEFAULT_SHUTTER_VALUES
+	assert file_contain_created == file_contain_expected
+
+def test_list_shutter_dead_time_at_least_2_elements():
+	output_folder = "/tmp/"
+	detector_offset = 6000  # micros
+	detector_sample_distance = 2100   # cm
+	epics_chopper_wavelength_range = [2, 10]  # Angstroms
+	o_make = MakeShutterValueFile(detector_offset=detector_offset,
+	                             output_folder=output_folder,
+	                             detector_sample_distance=detector_sample_distance,
+	                             epics_chopper_wavelength_range=epics_chopper_wavelength_range)
+	with pytest.raises(ValueError):
+		o_make.run(list_shutter_dead_time=10)
+
 
 # def test_convert_lambda_dict_to_tof():
 # 	output_folder = "/tmp/"

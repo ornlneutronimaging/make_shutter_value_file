@@ -93,16 +93,18 @@ class MakeShutterValueFile:
 
 	def run(self, list_shutter_dead_time=None):
 		filename = Path(self.output_folder) / SHUTTER_VALUE_FILENAME
-		if self.resonance_mode or (list_shutter_dead_time is None):
+		if self.resonance_mode:
 			resonance_shutter_value_ascii = RESONANCE_SHUTTER_VALUES
 			MakeShutterValueFile.make_ascii_file_from_string(text=resonance_shutter_value_ascii,
 			                                                filename=filename)
-		elif self.default_values:
+		elif self.default_values or (list_shutter_dead_time is None):
 			default_shutter_value_ascii = DEFAULT_SHUTTER_VALUES
 			MakeShutterValueFile.make_ascii_file_from_string(text=default_shutter_value_ascii,
 			                                                filename=filename)
 		else:
-			pass
+			# user needs to provide at least 2 dead_time_lambda
+			if not type(list_shutter_dead_time) is list:
+				raise ValueError("list_shutter_dead_time must be a list of at least 2 elements!")
 
 
 	# self.make_sure_list_wavelength_requested_can_be_measure(list_wavelength_requested=list_wavelength_requested)

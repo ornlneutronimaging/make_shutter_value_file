@@ -15,6 +15,8 @@ COEFF = (H / MN) * 1e6
 TOF_FRAMES = [[1e-6, 2.5e-3],
               [2.9e-3, 5.8e-3],
               [6.2e-3, 15.9e-3]]
+DEFAULT_LIST_SHUTTER_DEAD_TIME = [np.mean(TOF_FRAMES[0][1], TOF_FRAMES[1][0]),
+                                  np.mean(TOF_FRAMES[1][1], TOF_FRAMES[2][0])]
 MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME = 0.3  # Angstroms
 MIN_TOF_BETWEEN_FRAMES = TOF_FRAMES[1][0] - TOF_FRAMES[0][1]
 
@@ -75,11 +77,11 @@ class MakeShutterValueFile:
 						"Provides the maximum range of wavelength in Angstroms the chopper are set up for! ["
 						"min_value, max_value]")
 
-			_min_tof_peak_value_from_edge_of_frame = MakeShutterValueFile.convert_lambda_to_tof(
-					list_wavelength=[MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME],
-					detector_offset=detector_offset,
-					detector_sample_distance=self.detector_sample_distance)
-			self.min_tof_peak_value_from_edge_of_frame = _min_tof_peak_value_from_edge_of_frame[0]
+			# _min_tof_peak_value_from_edge_of_frame = MakeShutterValueFile.convert_lambda_to_tof(
+			# 		list_wavelength=[MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME],
+			# 		detector_offset=detector_offset,
+			# 		detector_sample_distance=self.detector_sample_distance)
+			# self.min_tof_peak_value_from_edge_of_frame = _min_tof_peak_value_from_edge_of_frame[0]
 
 		self.resonance_mode = resonance_mode
 		self.default_values = default_values
@@ -87,7 +89,7 @@ class MakeShutterValueFile:
 		self.detector_sample_distance = detector_sample_distance
 		self.detector_offset = detector_offset
 		self.epics_chopper_wavelength_range = epics_chopper_wavelength_range
-		self.minimum_measurable_lambda = self.calculate_minimum_measurable_lambda()
+		# self.minimum_measurable_lambda = self.calculate_minimum_measurable_lambda()
 
 	def run(self, list_shutter_dead_time=None):
 		filename = Path(self.output_folder) / SHUTTER_VALUE_FILENAME
@@ -100,7 +102,7 @@ class MakeShutterValueFile:
 			MakeShutterValueFile.make_ascii_file_from_string(text=default_shutter_value_ascii,
 			                                                filename=filename)
 		else:
-			pass
+			self.list_shutter_dead_time = DEFAULT_LIST_SHUTTER_DEAD_TIME
 
 
 			# self.make_sure_list_wavelength_requested_can_be_measure(list_wavelength_requested=list_wavelength_requested)

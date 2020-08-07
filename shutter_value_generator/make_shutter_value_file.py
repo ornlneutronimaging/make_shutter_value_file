@@ -120,8 +120,20 @@ class MakeShutterValueFile:
 			                                                                detector_sample_distance=self.detector_sample_distance,
 			                                                                output_units='s')
 
+			list_tof_frames = []
+			for _index, _tof_dead_time in enumerate(list_tof_dead_time):
+				if _index == 0:
+					left_tof = TOF_FRAMES[0][0]
+					right_tof = _tof_dead_time - MIN_TOF_BETWEEN_FRAMES
+				elif _index == (len(list_tof_dead_time) - 1):
+					left_tof = _tof_dead_time + MIN_TOF_BETWEEN_FRAMES
+					right_tof = TOF_FRAMES[-1][1]
+				else:
+					left_tof = _tof_dead_time - MIN_TOF_BETWEEN_FRAMES
+					right_tof = _tof_dead_time + MIN_TOF_BETWEEN_FRAMES
+				list_tof_frames.append([left_tof, right_tof])
 
-			
+			self.final_list_tof_frames = list_tof_frames
 
 
 	# self.make_sure_list_wavelength_requested_can_be_measure(list_wavelength_requested=list_wavelength_requested)

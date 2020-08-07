@@ -114,7 +114,7 @@ class MakeShutterValueFile:
 				MakeShutterValueFile.combine_wavelength_requested_too_close_to_each_other(
 						dict_list_wavelength_requested=dict_list_wavelength_requested)
 
-
+			
 
 
 

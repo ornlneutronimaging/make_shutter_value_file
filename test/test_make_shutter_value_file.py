@@ -214,7 +214,7 @@ def test_create_shutter_value_for_resonance_mode():
 def test_create_default_shutter_value_file_when_no_lambda_provided():
 	temp_dir = gettempdir()
 	o_make = MakeShutterValueFile(output_folder=temp_dir,
-	                              default_values=True)
+	                              default_mode=True)
 	o_make.run()
 
 	file_created_expected = Path(temp_dir) / "ShutterValues.txt"

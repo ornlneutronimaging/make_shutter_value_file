@@ -1,4 +1,3 @@
-import argparse
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -24,19 +23,6 @@ RESONANCE_SHUTTER_VALUES = "1e-6\t320e-6\t3\t0.16"
 DEFAULT_SHUTTER_VALUES = "1e-6\t2.5e-3\t5\t10.24\n2.9e-3\t5.8e-3\t6\t10.24\n6.2e-3\t15.9e-3\t7\t10.24"
 TIME_BIN_MICROS = 10.24
 
-# parser = argparse.ArgumentParser(description="Generate ShutterValue.txt file used by the MCP detector")
-# parser.add_argument('--output', default='./', help='output folder where the ShutterValue.txt file will be created')
-# parser.add_argument('--detector_sample_distance', default=13,
-#                     help='Distance detector to sample in meters',
-#                     type=float)
-# parser.add_argument('--detector_offset', default=6500,
-#                     help='Detector offset in micro seconds',
-#                     type=float)
-# parser.add_argument('--list_wavelength', help='Comma separated list of wavelength you want to measure (no white '
-#                                               'spaces)')
-#
-# args = parser.parse_args()
-
 
 class MakeShutterValueFile:
 
@@ -44,7 +30,7 @@ class MakeShutterValueFile:
 	             detector_sample_distance=None,
 	             detector_offset=None,
 	             resonance_mode=False,
-	             default_values=False,
+	             default_mode=False,
 	             epics_chopper_wavelength_range=None):
 		"""
 		:param output_folder:
@@ -55,7 +41,7 @@ class MakeShutterValueFile:
 		if output_folder is None:
 			raise AttributeError("Output folder needs to be an existing output folder!")
 
-		if resonance_mode or default_values:
+		if resonance_mode or default_mode:
 			pass
 		else:
 			if detector_sample_distance is None:
@@ -85,7 +71,7 @@ class MakeShutterValueFile:
 			# self.min_tof_peak_value_from_edge_of_frame = _min_tof_peak_value_from_edge_of_frame[0]
 
 		self.resonance_mode = resonance_mode
-		self.default_values = default_values
+		self.default_mode = default_mode
 		self.output_folder = output_folder
 		self.detector_sample_distance = detector_sample_distance
 		self.detector_offset = detector_offset
@@ -105,7 +91,7 @@ class MakeShutterValueFile:
 			resonance_shutter_value_ascii = RESONANCE_SHUTTER_VALUES
 			MakeShutterValueFile.make_ascii_file_from_string(text=resonance_shutter_value_ascii,
 			                                                filename=filename)
-		elif self.default_values or (list_lambda_dead_time is None):
+		elif self.default_mode or (list_lambda_dead_time is None):
 			default_shutter_value_ascii = DEFAULT_SHUTTER_VALUES
 			MakeShutterValueFile.make_ascii_file_from_string(text=default_shutter_value_ascii,
 			                                                filename=filename)
@@ -128,10 +114,11 @@ class MakeShutterValueFile:
 			                                                                output_units='s')
 			self.list_tof_dead_time = list_tof_dead_time
 			list_tof_frames = self.make_list_tof_frames(list_tof_dead_time)
-
-			# shutter_values_string = self.make_shutter_values_string(list_tof_frames=list_tof_frames)
-
 			self.final_list_tof_frames = list_tof_frames
+
+			shutter_values_string = self.make_shutter_values_string(list_tof_frames=list_tof_frames)
+			MakeShutterValueFile.make_ascii_file_from_string(text=shutter_values_string,
+			                                                 filename=filename)
 
 	def make_list_tof_frames(self, list_tof_dead_time):
 		list_tof_frames = []
@@ -308,3 +295,6 @@ class MakeShutterValueFile:
 			_right = _wave + MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME
 			dict_list_wavelength_requested[_wave] = [_left, _right]
 		return dict_list_wavelength_requested
+
+
+

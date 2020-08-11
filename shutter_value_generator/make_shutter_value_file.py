@@ -3,7 +3,6 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 from collections import OrderedDict
-import copy
 
 CLOCK_CYCLE_FILE = 'clock_cycle.txt'
 SHUTTER_VALUE_FILENAME = "ShutterValues.txt"
@@ -18,10 +17,12 @@ TOF_FRAMES = [[1e-6, 2.5e-3],
 DEFAULT_list_lambda_dead_time = [np.mean([TOF_FRAMES[0][1], TOF_FRAMES[1][0]]),
                                   np.mean([TOF_FRAMES[1][1], TOF_FRAMES[2][0]])]
 MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME = 0.3  # Angstroms
+MIN_LAMBDA_PEAK_VALUE_INTERVAL = 0.3  # Angstroms
 MIN_TOF_BETWEEN_FRAMES = TOF_FRAMES[1][0] - TOF_FRAMES[0][1]
 
 RESONANCE_SHUTTER_VALUES = "1e-6\t320e-6\t3\t0.16"
 DEFAULT_SHUTTER_VALUES = "1e-6\t2.5e-3\t5\t10.24\n2.9e-3\t5.8e-3\t6\t10.24\n6.2e-3\t15.9e-3\t7\t10.24"
+TIME_BIN_MICROS = 10.24
 
 # parser = argparse.ArgumentParser(description="Generate ShutterValue.txt file used by the MCP detector")
 # parser.add_argument('--output', default='./', help='output folder where the ShutterValue.txt file will be created')
@@ -95,8 +96,9 @@ class MakeShutterValueFile:
 		"""
 		
 		:param list_lambda_dead_time: Ideally the user will provide a minimum of 2 or 3 equally spaced in the
-		full range lambda. Those lambda will corresponds to the dead time of the MCP.  
-		:return: 
+		full range lambda. Those lambda will corresponds to the dead time of the MCP. if 2 lambda are not at
+		least MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME (0.3 Angstroms) from each other, error is raised.
+		:return:
 		"""
 		filename = Path(self.output_folder) / SHUTTER_VALUE_FILENAME
 		if self.resonance_mode:
@@ -115,49 +117,75 @@ class MakeShutterValueFile:
 			if len(list_lambda_dead_time) < 2:
 				raise ValueError("list_lambda_dead_time should contain at least 2 dead lambda values!")
 
+
+			if MakeShutterValueFile.list_lambda_dead_time_too_close(list_lambda_dead_time=list_lambda_dead_time):
+				raise ValueError("Make sure the list of lambda dead time are at least {}Angstroms from each "
+				                 "other".format(MIN_LAMBDA_PEAK_VALUE_INTERVAL))
+
 			list_tof_dead_time = MakeShutterValueFile.convert_lambda_to_tof(list_wavelength=list_lambda_dead_time,
 			                                                                detector_offset=self.detector_offset,
 			                                                                detector_sample_distance=self.detector_sample_distance,
 			                                                                output_units='s')
+			self.list_tof_dead_time = list_tof_dead_time
+			list_tof_frames = self.make_list_tof_frames(list_tof_dead_time)
 
-			list_tof_frames = []
-			for _index, _tof_dead_time in enumerate(list_tof_dead_time):
-				if _index == 0:
-					left_tof = TOF_FRAMES[0][0]
-					right_tof = _tof_dead_time - MIN_TOF_BETWEEN_FRAMES
-				elif _index == (len(list_tof_dead_time) - 1):
-					left_tof = _tof_dead_time + MIN_TOF_BETWEEN_FRAMES
-					right_tof = TOF_FRAMES[-1][1]
-				else:
-					left_tof = _tof_dead_time - MIN_TOF_BETWEEN_FRAMES
-					right_tof = _tof_dead_time + MIN_TOF_BETWEEN_FRAMES
-				list_tof_frames.append([left_tof, right_tof])
+			# shutter_values_string = self.make_shutter_values_string(list_tof_frames=list_tof_frames)
 
 			self.final_list_tof_frames = list_tof_frames
 
+	def make_list_tof_frames(self, list_tof_dead_time):
+		list_tof_frames = []
+		for _index, _tof_dead_time in enumerate(list_tof_dead_time):
 
-	# self.make_sure_list_wavelength_requested_can_be_measure(list_wavelength_requested=list_wavelength_requested)
-			#
-			# MakeShutterValueFile.check_overlap_wavelength_requested_with_chopper_settings(
-			# 		list_wavelength_requested=list_wavelength_requested,
-			# 		epics_chopper_wavelength_range=self.epics_chopper_wavelength_range)
-			#
-			# dict_list_wavelength_requested = MakeShutterValueFile.initialize_list_of_wavelength_requested_dictionary(
-			# 		list_wavelength_requested=list_wavelength_requested)
-			#
-			# self.dict_clean_list_wavelength_requested = \
-			# 	MakeShutterValueFile.combine_wavelength_requested_too_close_to_each_other(
-			# 			dict_list_wavelength_requested=dict_list_wavelength_requested)
-			#
-			#
-			#
-			#
-			#
-			#
-			#
-			#
-			# self.final_tof_frames = self.set_final_tof_frames(
-			# 		dict_list_lambda_requested=self.dict_clean_list_wavelength_requested)
+			if _index == 0:
+				left_tof = TOF_FRAMES[0][0]
+				right_tof = _tof_dead_time - MIN_TOF_BETWEEN_FRAMES
+				list_tof_frames.append([left_tof, right_tof])
+
+			if _index == (len(list_tof_dead_time) - 1):
+				left_tof = _tof_dead_time + MIN_TOF_BETWEEN_FRAMES
+				right_tof = TOF_FRAMES[-1][1]
+				list_tof_frames.append([left_tof, right_tof])
+				break
+
+			left_tof = _tof_dead_time + MIN_TOF_BETWEEN_FRAMES
+			right_tof = list_tof_dead_time[_index + 1] - MIN_TOF_BETWEEN_FRAMES
+			list_tof_frames.append([left_tof, right_tof])
+		return list_tof_frames
+
+	def make_shutter_values_string(self, list_tof_frames=None):
+		shutter_value_array = []
+		for _tof_frame in list_tof_frames:
+			_col_1 = _tof_frame[0]
+			_col_2 = _tof_frame[1]
+			_col_4 = TIME_BIN_MICROS
+			_col_3 = self.get_above_closest_divided(delta_tof=_tof_frame[1] - _tof_frame[0])
+			shutter_value_array.append("{}\t{}\t{}\t{}".format(_col_1, _col_2, _col_3, _col_4))
+		return "\n".join(shutter_value_array)
+
+	@staticmethod
+	def get_above_closest_divided(delta_tof=0):
+		"""
+		:param delta_tof: in s
+		:param clock_cycle_data:
+		:return:
+		"""
+		delta_tof_ms = delta_tof * 1e3    # ms
+		clock_cycle_data = MakeShutterValueFile.get_clock_cycle_table()
+		clock_array = np.array(clock_cycle_data['Clock'])
+		where_delta_is_less_or_equal_than = np.where(delta_tof_ms <= clock_array)
+		if where_delta_is_less_or_equal_than:
+			index = where_delta_is_less_or_equal_than[0][-1]
+			return np.array(clock_cycle_data['Divided'])[index]
+		return -1
+
+	@staticmethod
+	def list_lambda_dead_time_too_close(list_lambda_dead_time=None):
+		lambda_offset = np.array(list_lambda_dead_time[1:]) - np.array(list_lambda_dead_time[0:-1])
+		for _offset in lambda_offset:
+			if _offset <= MIN_LAMBDA_PEAK_VALUE_INTERVAL:
+				return True
+		return False
 
 	def make_sure_list_wavelength_requested_can_be_measure(self, list_wavelength_requested=None):
 		"""
@@ -281,155 +309,118 @@ class MakeShutterValueFile:
 			dict_list_wavelength_requested[_wave] = [_left, _right]
 		return dict_list_wavelength_requested
 
-	@staticmethod
-	def combine_wavelength_requested_too_close_to_each_other(dict_list_wavelength_requested=None,
-	                                                         safety_wavelength_offset=0):
-		"""
-		This method clean up the dict_list_wavelength_requested dictionary by merging lambda requested
-		that are close to each other (less then MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME). The final lambda
-		requested will be the average value of those lambda and the left and right lambda range will be the extreme
-		values
+	# @staticmethod
+	# def combine_wavelength_requested_too_close_to_each_other(dict_list_wavelength_requested=None,
+	#                                                          safety_wavelength_offset=0):
+	# 	"""
+	# 	This method clean up the dict_list_wavelength_requested dictionary by merging lambda requested
+	# 	that are close to each other (less then MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME). The final lambda
+	# 	requested will be the average value of those lambda and the left and right lambda range will be the extreme
+	# 	values
+	#
+	# 	ex: {5: [5-0.3, 5+0.3], 5.1: [5.1-0.3, 5.1+0.3]}
+	# 	will produce
+	# 	{5.05: [5-0.3, 5.1+0.3]}
+	#
+	# 	:param dict_list_wavelength_requested:
+	# 	:param safety_wavelength_offset: this parameter makes sure that two successive lambda range are far enough
+	# 			appart that a dead time of the detector can be inserted between them
+	# 	:return: dictionary of the merged wavelength
+	# 	"""
+	# 	_dict_list_wavelength_requested = copy.deepcopy(dict_list_wavelength_requested)
+	#
+	# 	list_wavelength_requested = list(_dict_list_wavelength_requested.keys())
+	# 	if len(list_wavelength_requested) == 1:
+	# 		return _dict_list_wavelength_requested
+	#
+	# 	dict_clean_list_wavelength_requested = OrderedDict()
+	# 	while len(_dict_list_wavelength_requested.keys()) > 1:
+	#
+	# 		list_keys = list(_dict_list_wavelength_requested.keys())[:2]
+	# 		list_keys.sort()
+	# 		first_wavelength, second_wavelength = list_keys
+	#
+	# 		first_wavelength_right_range = _dict_list_wavelength_requested[first_wavelength][1]
+	# 		second_wavelength_left_range = _dict_list_wavelength_requested[second_wavelength][0]
+	#
+	# 		if second_wavelength_left_range - first_wavelength_right_range <= safety_wavelength_offset:
+	# 			# they are too close to each other, we need to merge them
+	#
+	# 			new_merge_key = np.mean([first_wavelength, second_wavelength])
+	# 			new_merge_left_range = _dict_list_wavelength_requested[first_wavelength][0]
+	# 			new_merge_right_range = _dict_list_wavelength_requested[second_wavelength][1]
+	#
+	# 			del _dict_list_wavelength_requested[first_wavelength]
+	# 			del _dict_list_wavelength_requested[second_wavelength]
+	# 			_dict_list_wavelength_requested[new_merge_key] = [new_merge_left_range, new_merge_right_range]
+	# 			_dict_list_wavelength_requested = \
+	# 				MakeShutterValueFile.sort_dictionary_by_keys(dictionary=_dict_list_wavelength_requested)
+	#
+	# 		else:
+	# 			dict_clean_list_wavelength_requested[first_wavelength] = copy.deepcopy(_dict_list_wavelength_requested[
+	# 				                                                                       first_wavelength])
+	# 			del _dict_list_wavelength_requested[first_wavelength]
+	#
+	# 	last_key = list(_dict_list_wavelength_requested.keys())[0]
+	# 	dict_clean_list_wavelength_requested[last_key] = copy.deepcopy((_dict_list_wavelength_requested[last_key]))
+	#
+	# 	return dict_clean_list_wavelength_requested
+	#
+	# @staticmethod
+	# def sort_dictionary_by_keys(dictionary=None):
+	# 	"""
+	# 	sort the dictionary by keys to make sure they are in increasing order
+	#
+	# 	:param dictionary:
+	# 	:return:
+	# 	"""
+	# 	new_dictionary = OrderedDict()
+	# 	list_key = list(dictionary.keys())
+	# 	list_key.sort()
+	#
+	# 	for _key in list_key:
+	# 		new_dictionary[_key] = dictionary[_key]
+	# 	return new_dictionary
 
-		ex: {5: [5-0.3, 5+0.3], 5.1: [5.1-0.3, 5.1+0.3]}
-		will produce
-		{5.05: [5-0.3, 5.1+0.3]}
-
-		:param dict_list_wavelength_requested:
-		:param safety_wavelength_offset: this parameter makes sure that two successive lambda range are far enough
-				appart that a dead time of the detector can be inserted between them
-		:return: dictionary of the merged wavelength
-		"""
-		_dict_list_wavelength_requested = copy.deepcopy(dict_list_wavelength_requested)
-
-		list_wavelength_requested = list(_dict_list_wavelength_requested.keys())
-		if len(list_wavelength_requested) == 1:
-			return _dict_list_wavelength_requested
-
-		dict_clean_list_wavelength_requested = OrderedDict()
-		while len(_dict_list_wavelength_requested.keys()) > 1:
-
-			list_keys = list(_dict_list_wavelength_requested.keys())[:2]
-			list_keys.sort()
-			first_wavelength, second_wavelength = list_keys
-
-			first_wavelength_right_range = _dict_list_wavelength_requested[first_wavelength][1]
-			second_wavelength_left_range = _dict_list_wavelength_requested[second_wavelength][0]
-
-			if second_wavelength_left_range - first_wavelength_right_range <= safety_wavelength_offset:
-				# they are too close to each other, we need to merge them
-
-				new_merge_key = np.mean([first_wavelength, second_wavelength])
-				new_merge_left_range = _dict_list_wavelength_requested[first_wavelength][0]
-				new_merge_right_range = _dict_list_wavelength_requested[second_wavelength][1]
-
-				del _dict_list_wavelength_requested[first_wavelength]
-				del _dict_list_wavelength_requested[second_wavelength]
-				_dict_list_wavelength_requested[new_merge_key] = [new_merge_left_range, new_merge_right_range]
-				_dict_list_wavelength_requested = \
-					MakeShutterValueFile.sort_dictionary_by_keys(dictionary=_dict_list_wavelength_requested)
-
-			else:
-				dict_clean_list_wavelength_requested[first_wavelength] = copy.deepcopy(_dict_list_wavelength_requested[
-					                                                                       first_wavelength])
-				del _dict_list_wavelength_requested[first_wavelength]
-
-		last_key = list(_dict_list_wavelength_requested.keys())[0]
-		dict_clean_list_wavelength_requested[last_key] = copy.deepcopy((_dict_list_wavelength_requested[last_key]))
-
-		return dict_clean_list_wavelength_requested
-
-	@staticmethod
-	def sort_dictionary_by_keys(dictionary=None):
-		"""
-		sort the dictionary by keys to make sure they are in increasing order
-
-		:param dictionary:
-		:return:
-		"""
-		new_dictionary = OrderedDict()
-		list_key = list(dictionary.keys())
-		list_key.sort()
-
-		for _key in list_key:
-			new_dictionary[_key] = dictionary[_key]
-		return new_dictionary
-
-	def set_final_tof_frames(self, dict_list_lambda_requested=None):
-		if dict_list_lambda_requested is None:
-			raise ValueError("Empty dict list lambda requested")
-
-		dict_list_tof_requested = self.convert_lambda_dict_to_tof(
-				dict_list_lambda_requested=dict_list_lambda_requested,
-				output_units='s')
-		final_tof_frames = copy.deepcopy(TOF_FRAMES)
-		print(f"final_tof_frames: {final_tof_frames}")
-
-		index_tof_requested = 0
-		list_tof_requested_keys = list(dict_list_tof_requested.keys())
-		while index_tof_requested < len(list_tof_requested_keys):
-
-			[_left_tof_requested, _right_tof_requested] = dict_list_tof_requested[list_tof_requested_keys[
-				index_tof_requested]]
-
-			print(f"working with -> tof_requested {list_tof_requested_keys[index_tof_requested]} and range: "
-			      f"[{_left_tof_requested},"
-			      f" {_right_tof_requested}]")
-
-			for index_final_tof_frames, [_left_final_tof, _right_final_tof] in enumerate(final_tof_frames):
-
-				print(f"final_tof: [{_left_final_tof}, {_right_final_tof}]")
-
-				if (_left_tof_requested >= _left_final_tof) and (_right_tof_requested <= _right_final_tof):
-					# tof range requested full fit inside one of the final tof frame, let's move on
-					# to the next tof range requested
-					break
-
-				elif (_left_tof_requested < _left_final_tof):
-					# tof requested is overlapping with the left gap of the final tof range
-					print("-> tof requested is overlapping on the left!")
-					break
-
-				else:
-					print("-> tof requested is overlapping on the right!")
-					# delta_offset = _right_tof_requested - _right_final_tof
-					final_tof_frames[index_final_tof_frames] = [_left_final_tof, _left_tof_requested - MIN_TOF_BETWEEN_FRAMES]
-					final_tof_frames.insert(index_final_tof_frames+1, [_left_tof_requested, _right_tof_requested])
-					if index_final_tof_frames < (len(final_tof_frames) - 2):
-						# if it's not the last final tof frame, we need to shift the left range of the next frame
-						# by the same offset we pushed the current right range
-						[_, _next_right_final_tof] = final_tof_frames[index_final_tof_frames + 2]
-						final_tof_frames[index_final_tof_frames+2] = [_right_tof_requested + MIN_TOF_BETWEEN_FRAMES,
-						                                            _next_right_final_tof]
-					break
-
-			index_tof_requested += 1
-
-
-
-
-		# for _tof_requested in dict_list_tof_requested.keys():
-		# 	[_left_tof_requested, _right_tof_requested] = dict_list_tof_requested[_tof_requested]
-		# 	for _final_tof in final_tof_frames:
-		# 		_left_tof_final, _right_tof_final = _final_tof
-		# 		if (_left_tof_requested > _left_tof_final) and (_right_tof_requested < _right_tof_final):
-		# 			# nothing to do, we ended up inside a time range already defined
-		# 			continue
-		# 		elif _left_tof_requested > _left_tof_final:
-		# 			# tof requested is overlapping with the right edge
-		#
-		# 			# current _right_tof_final is now _right_tof_requested
-		# 			# next _left_tof_final must be pushed to the right by (old_right_tof_final - new_right_tof_final)
-		# 			# restart looping from beginning
-		# 			pass
-		#
-		# 		elif _right_tof_requested < _right_tof_final:
-		# 			# tof requested is overlapping with the left edge
-		# 			pass
-		#
-		# 			# we should never end up here !!!!!
-		#
-		# 		else:
-		# 			# full tof range requested is outside this final tof range proposed
-		# 			continue
-
-		return final_tof_frames
+	# def set_final_tof_frames(self, dict_list_lambda_requested=None):
+	# 	if dict_list_lambda_requested is None:
+	# 		raise ValueError("Empty dict list lambda requested")
+	#
+	# 	dict_list_tof_requested = self.convert_lambda_dict_to_tof(
+	# 			dict_list_lambda_requested=dict_list_lambda_requested,
+	# 			output_units='s')
+	# 	final_tof_frames = copy.deepcopy(TOF_FRAMES)
+	#
+	# 	index_tof_requested = 0
+	# 	list_tof_requested_keys = list(dict_list_tof_requested.keys())
+	# 	while index_tof_requested < len(list_tof_requested_keys):
+	#
+	# 		[_left_tof_requested, _right_tof_requested] = dict_list_tof_requested[list_tof_requested_keys[
+	# 			index_tof_requested]]
+	#
+	# 		for index_final_tof_frames, [_left_final_tof, _right_final_tof] in enumerate(final_tof_frames):
+	#
+	# 			if (_left_tof_requested >= _left_final_tof) and (_right_tof_requested <= _right_final_tof):
+	# 				# tof range requested full fit inside one of the final tof frame, let's move on
+	# 				# to the next tof range requested
+	# 				break
+	#
+	# 			elif (_left_tof_requested < _left_final_tof):
+	# 				# tof requested is overlapping with the left gap of the final tof range
+	# 				print("-> tof requested is overlapping on the left!")
+	# 				break
+	#
+	# 			else:
+	# 				print("-> tof requested is overlapping on the right!")
+	# 				# delta_offset = _right_tof_requested - _right_final_tof
+	# 				final_tof_frames[index_final_tof_frames] = [_left_final_tof, _left_tof_requested - MIN_TOF_BETWEEN_FRAMES]
+	# 				final_tof_frames.insert(index_final_tof_frames+1, [_left_tof_requested, _right_tof_requested])
+	# 				if index_final_tof_frames < (len(final_tof_frames) - 2):
+	# 					# if it's not the last final tof frame, we need to shift the left range of the next frame
+	# 					# by the same offset we pushed the current right range
+	# 					[_, _next_right_final_tof] = final_tof_frames[index_final_tof_frames + 2]
+	# 					final_tof_frames[index_final_tof_frames+2] = [_right_tof_requested + MIN_TOF_BETWEEN_FRAMES,
+	# 					                                            _next_right_final_tof]
+	# 				break
+	#
+	# 		index_tof_requested += 1

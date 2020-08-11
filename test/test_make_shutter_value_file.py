@@ -10,7 +10,7 @@ TOLERANCE = 1e-3
 from shutter_value_generator.make_shutter_value_file import MakeShutterValueFile
 from shutter_value_generator.make_shutter_value_file import RESONANCE_SHUTTER_VALUES
 from shutter_value_generator.make_shutter_value_file import DEFAULT_SHUTTER_VALUES
-from shutter_value_generator.make_shutter_value_file import MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME
+from shutter_value_generator.make_shutter_value_file import MIN_TOF_BETWEEN_FRAMES
 from shutter_value_generator.make_shutter_value_file import TOF_FRAMES
 from shutter_value_generator.make_shutter_value_file import COEFF
 
@@ -243,7 +243,7 @@ def test_create_default_shutter_value_file_when_no_list_lambda_dead_time_provide
 	file_contain_expected = DEFAULT_SHUTTER_VALUES
 	assert file_contain_created == file_contain_expected
 
-def test_list_lambda_dead_time_at_least_2_elements():
+def test_list_lambda_dead_time_should_have_at_least_2_elements():
 	output_folder = "/tmp/"
 	detector_offset = 6000  # micros
 	detector_sample_distance = 2100   # cm
@@ -258,6 +258,72 @@ def test_list_lambda_dead_time_at_least_2_elements():
 	with pytest.raises(ValueError):
 		o_make.run(list_lambda_dead_time=[10])
 
+def test_list_lambda_dead_time_too_close_to_each_other():
+	output_folder = "/tmp/"
+	detector_offset = 6000  # micros
+	detector_sample_distance = 2100   # cm
+	epics_chopper_wavelength_range = [2, 10]  # Angstroms
+	o_make = MakeShutterValueFile(detector_offset=detector_offset,
+	                             output_folder=output_folder,
+	                             detector_sample_distance=detector_sample_distance,
+	                             epics_chopper_wavelength_range=epics_chopper_wavelength_range)
+	list_lambda_dead_time = [3, 3.3]
+	with pytest.raises(ValueError):
+		o_make.run(list_lambda_dead_time=list_lambda_dead_time)
+
+def test_list_lambda_dead_time_3_elements():
+	output_folder = "/tmp/"
+	detector_offset = 6000  # micros
+	detector_sample_distance = 2100   # cm
+	epics_chopper_wavelength_range = [2, 10]  # Angstroms
+	o_make = MakeShutterValueFile(detector_offset=detector_offset,
+	                             output_folder=output_folder,
+	                             detector_sample_distance=detector_sample_distance,
+	                             epics_chopper_wavelength_range=epics_chopper_wavelength_range)
+	list_lambda_dead_time = [3, 5, 8]
+	o_make.run(list_lambda_dead_time=list_lambda_dead_time)
+
+	final_list_tof_frames_calculated = o_make.final_list_tof_frames
+	list_tof_dead_time = o_make.list_tof_dead_time
+	final_list_tof_frames_expected = []
+	final_list_tof_frames_expected.append([TOF_FRAMES[0][0],
+	                                       list_tof_dead_time[0] - MIN_TOF_BETWEEN_FRAMES])
+	final_list_tof_frames_expected.append([list_tof_dead_time[0] + MIN_TOF_BETWEEN_FRAMES,
+	                                       list_tof_dead_time[1] - MIN_TOF_BETWEEN_FRAMES])
+	final_list_tof_frames_expected.append([list_tof_dead_time[1] + MIN_TOF_BETWEEN_FRAMES,
+	                                       list_tof_dead_time[2] - MIN_TOF_BETWEEN_FRAMES])
+	final_list_tof_frames_expected.append([list_tof_dead_time[2] + MIN_TOF_BETWEEN_FRAMES,
+	                                       TOF_FRAMES[-1][1]])
+	for _calculated_range, _expected_range in zip(final_list_tof_frames_calculated, final_list_tof_frames_expected):
+		assert _calculated_range == _expected_range
+
+@pytest.mark.parametrize('delta_tof, above_closest_expected',
+                         [(2.5e-3, 5),
+                          (0.1e-3, 9),
+                          (25e-3, 2)])
+def test_getting_right_above_closest_divided(delta_tof, above_closest_expected):
+	above_closest_divided = MakeShutterValueFile.get_above_closest_divided(delta_tof=delta_tof)
+	assert above_closest_divided == above_closest_expected
+
+def test_make_shutter_value_string():
+	output_folder = "/tmp/"
+	detector_offset = 6000  # micros
+	detector_sample_distance = 2100   # cm
+	epics_chopper_wavelength_range = [2, 10]  # Angstroms
+	o_make = MakeShutterValueFile(detector_offset=detector_offset,
+	                             output_folder=output_folder,
+	                             detector_sample_distance=detector_sample_distance,
+	                             epics_chopper_wavelength_range=epics_chopper_wavelength_range)
+	list_lambda_dead_time = [3, 5, 8]
+	list_tof_dead_time = MakeShutterValueFile.convert_lambda_to_tof(list_wavelength=list_lambda_dead_time,
+	                                                                detector_offset=detector_offset,
+	                                                                detector_sample_distance=detector_sample_distance,
+	                                                                output_units='s')
+	list_tof_frames = o_make.make_list_tof_frames(list_tof_dead_time=list_tof_dead_time)
+	shutter_value_string = o_make.make_shutter_values_string(list_tof_frames=list_tof_frames)
+	shutter_values_string_expected = "1e-06\t0.009525040036703266\t3\t10.24\n0.010325040036703264\t" + \
+		"0.02014173339450544\t3\t10.24\n0.020941733394505443\t0.036066773431208704\t2\t10.24\n" + \
+		                             "0.0368667734312087\t0.0159\t19\t10.24"
 
 # def test_convert_lambda_dict_to_tof():
 # 	output_folder = "/tmp/"

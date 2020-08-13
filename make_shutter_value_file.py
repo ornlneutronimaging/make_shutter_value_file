@@ -7,9 +7,9 @@ parser.add_argument('--verbose', '-v', default=0, action='count',
                     help='display resulting shutter value file')
 parser.add_argument('--output_folder', default='./', help='output folder where the ShutterValue.txt file will be '
                                                          'created')
-parser.add_argument('epics_chopper_wavelength_range',
+parser.add_argument('--epics_chopper_wavelength_range',
                     help='left,right wavelength range defined by the choppers')
-parser.add_argument('list_wavelength_dead_time',
+parser.add_argument('--list_wavelength_dead_time',
                     default=None,
                     help='Comma separated list of wavelength that do not have any bragg edges of interest')
 parser.add_argument('--detector_sample_distance',
@@ -20,14 +20,14 @@ parser.add_argument('--detector_offset',
                     default=6500,
                     help='Detector offset in micro seconds',
                     type=float)
-parser.add_argument('--resonance_mode',
-                    default=False,
-                    help='Generate shutter value in resonance mode',
-                    type=bool)
-parser.add_argument('--default_mode',
-                    default=False,
-                    help='Generate default shutter value file',
-                    type=bool)
+parser.add_argument('--resonance_mode', '-r',
+                    default=0,
+                    action='count',
+                    help='Generate shutter value in resonance mode')
+parser.add_argument('--default_mode', '-d',
+                    default=0,
+                    action='count',
+                    help='Generate default shutter value file')
 
 args = parser.parse_args()
 
@@ -43,8 +43,19 @@ if args.verbose == 0:
 else:
     verbose = True
 
-epics_chopper_wavelength_range = epics_chopper_wavelength_range.split(",")
-epics_chopper_wavelength_range = [np.float(_value) for _value in epics_chopper_wavelength_range]
+resonance_mode = True if args.resonance_mode else False
+default_mode = True if args.default_mode else False
+
+if epics_chopper_wavelength_range:
+    epics_chopper_wavelength_range = epics_chopper_wavelength_range.split(",")
+else:
+    epics_chopper_wavelength_range = None
+
+if epics_chopper_wavelength_range:
+    epics_chopper_wavelength_range = [np.float(_value) for _value in
+                                                                    epics_chopper_wavelength_range]
+else:
+    epics_chopper_wavelength_range = None
 
 if list_wavelength_dead_time:
 	list_wavelength_dead_time = list_wavelength_dead_time.split(",")

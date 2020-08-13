@@ -95,12 +95,12 @@ class MakeShutterValueFile:
 		"""
 		filename = Path(self.output_folder) / SHUTTER_VALUE_FILENAME
 		if self.resonance_mode:
-			resonance_shutter_value_ascii = RESONANCE_SHUTTER_VALUES
-			MakeShutterValueFile.make_ascii_file_from_string(text=resonance_shutter_value_ascii,
+			shutter_values_string = RESONANCE_SHUTTER_VALUES
+			MakeShutterValueFile.make_ascii_file_from_string(text=shutter_values_string,
 			                                                filename=filename)
 		elif self.default_mode or (list_lambda_dead_time is None):
-			default_shutter_value_ascii = DEFAULT_SHUTTER_VALUES
-			MakeShutterValueFile.make_ascii_file_from_string(text=default_shutter_value_ascii,
+			shutter_values_string = DEFAULT_SHUTTER_VALUES
+			MakeShutterValueFile.make_ascii_file_from_string(text=shutter_values_string,
 			                                                filename=filename)
 		else:
 			# user needs to provide at least 2 dead_time_lambda

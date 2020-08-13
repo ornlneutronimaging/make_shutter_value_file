@@ -44,6 +44,9 @@ class MakeShutterValueFile:
 		if output_folder is None:
 			raise AttributeError("Output folder needs to be an existing output folder!")
 
+		if resonance_mode and default_mode:
+			raise AttributeError("You can not have default and resonance mode turned on at the same time!")
+
 		if resonance_mode or default_mode:
 			pass
 		else:

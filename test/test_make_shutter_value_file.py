@@ -103,6 +103,15 @@ def test_parameters_are_saved(detector_offset, output_folder, detector_sample_di
 	assert o_make.detector_sample_distance == detector_sample_distance
 	assert o_make.epics_chopper_wavelength_range == epics_chopper_wavelength_range
 
+def test_do_not_allow_default_and_resonance_mode():
+	with pytest.raises(AttributeError):
+		epics_chopper_wavelength_range = [2, 10]  # Angstroms
+		output_folder = "./"
+		MakeShutterValueFile(default_mode=True,
+	                         resonance_mode=True,
+		                     output_folder=output_folder,
+	                         epics_chopper_wavelength_range=epics_chopper_wavelength_range)
+
 def test_convert_lambda_to_tof():
 	# output in micros
 	detector_offset = 6500  # micros

@@ -31,12 +31,15 @@ class MakeShutterValueFile:
 	             detector_offset=None,
 	             resonance_mode=False,
 	             default_mode=False,
-	             epics_chopper_wavelength_range=None):
+	             epics_chopper_wavelength_range=None,
+	             verbose=False):
 		"""
 		:param output_folder:
 		:param detector_sample_distance: in m
 		:param detector_offset:  in micros
 		:param resonance_mode: boolean
+		:param epics_chopper_wavelength_range: [value1, value2]
+		:param verbose: boolean (False by default) if True, will output in the stdout the content of the output file
 		"""
 		if output_folder is None:
 			raise AttributeError("Output folder needs to be an existing output folder!")
@@ -76,6 +79,7 @@ class MakeShutterValueFile:
 		self.detector_sample_distance = detector_sample_distance
 		self.detector_offset = detector_offset
 		self.epics_chopper_wavelength_range = epics_chopper_wavelength_range
+		self.verbose = verbose
 		# self.minimum_measurable_lambda = self.calculate_minimum_measurable_lambda()
 
 	def run(self, list_lambda_dead_time=None):
@@ -119,6 +123,9 @@ class MakeShutterValueFile:
 			shutter_values_string = self.make_shutter_values_string(list_tof_frames=list_tof_frames)
 			MakeShutterValueFile.make_ascii_file_from_string(text=shutter_values_string,
 			                                                 filename=filename)
+
+		if self.verbose:
+			print(shutter_values_string)
 
 	def make_list_tof_frames(self, list_tof_dead_time):
 		list_tof_frames = []
@@ -234,11 +241,11 @@ class MakeShutterValueFile:
 
 		:param tof: in micros
 		:param detector_offset: micros
-		:param detector_sample_distance: in cm
+		:param detector_sample_distance: in m
 		:return:
 		lambda in Angstroms
 		"""
-		return (detector_offset + tof) * COEFF / detector_sample_distance
+		return (detector_offset + tof) * COEFF / (detector_sample_distance * 100)
 
 	@staticmethod
 	def get_clock_cycle_table():
@@ -260,13 +267,13 @@ class MakeShutterValueFile:
 
 		:param list_wavelength: in units of Angstroms
 		:param detector_offset: in micros
-		:param detector_sample_distance: in cm
+		:param detector_sample_distance: in m
 		:param output_units: default in seconds but micros can be used
 		:return: the list of lambda in micros
 		"""
 		list_tof = []
 		for _lambda in list_wavelength:
-			_tof = _lambda * detector_sample_distance / COEFF - detector_offset
+			_tof = _lambda * (detector_sample_distance * 100) / COEFF - detector_offset
 			if output_units == 's':
 				_tof *= 1e-6
 			list_tof.append(_tof)

@@ -51,11 +51,11 @@ def make_test_range_array():
 # 	print(o_make.minimum_measurable_lambda)
 
 def convert_lambda_to_tof(list_lambda, detector_offset, detector_sample_distance):
-	list_tof = [_lambda * detector_sample_distance / COEFF - detector_offset for _lambda in list_lambda]
+	list_tof = [_lambda * (detector_sample_distance * 100) / COEFF - detector_offset for _lambda in list_lambda]
 	return list_tof
 
 def convert_tof_to_lambda(list_tof, detector_offset, detector_sample_distance):
-	list_lambda = [(detector_offset + _tof) * COEFF / detector_sample_distance for _tof in list_tof]
+	list_lambda = [(detector_offset + _tof) * COEFF / (detector_sample_distance * 100.) for _tof in list_tof]
 	return list_lambda
 
 def test_get_clock_cycle_table():
@@ -106,7 +106,7 @@ def test_parameters_are_saved(detector_offset, output_folder, detector_sample_di
 def test_convert_lambda_to_tof():
 	# output in micros
 	detector_offset = 6500  # micros
-	detector_sample_distance = 2100  # cm
+	detector_sample_distance = 21  # cm
 	list_lambda = [4, 5, 6]
 	list_tof = MakeShutterValueFile.convert_lambda_to_tof(list_wavelength=list_lambda,
 	                                                     detector_offset=detector_offset,
@@ -127,7 +127,7 @@ def test_convert_lambda_to_tof():
 
 def test_convert_tof_to_lambda():
 	detector_offset = 6500  # micros
-	detector_sample_distance = 2100  # cm
+	detector_sample_distance = 21  # cm
 	tof = 21000     # micros
 	lambda_returned = MakeShutterValueFile.convert_tof_to_lambda(tof=tof,
 	                                                            detector_offset=detector_offset,
@@ -228,7 +228,7 @@ def test_create_default_shutter_value_file_when_no_lambda_provided():
 def test_create_default_shutter_value_file_when_no_list_lambda_dead_time_provided():
 	temp_dir = gettempdir()
 	detector_offset = 6000  # micros
-	detector_sample_distance = 2100   # cm
+	detector_sample_distance = 21   # cm
 	epics_chopper_wavelength_range = [2, 10]  # Angstroms
 	o_make = MakeShutterValueFile(detector_offset=detector_offset,
 	                             output_folder=temp_dir,
@@ -246,7 +246,7 @@ def test_create_default_shutter_value_file_when_no_list_lambda_dead_time_provide
 def test_list_lambda_dead_time_should_have_at_least_2_elements():
 	output_folder = "/tmp/"
 	detector_offset = 6000  # micros
-	detector_sample_distance = 2100   # cm
+	detector_sample_distance = 21   # cm
 	epics_chopper_wavelength_range = [2, 10]  # Angstroms
 	o_make = MakeShutterValueFile(detector_offset=detector_offset,
 	                             output_folder=output_folder,
@@ -261,7 +261,7 @@ def test_list_lambda_dead_time_should_have_at_least_2_elements():
 def test_list_lambda_dead_time_too_close_to_each_other():
 	output_folder = "/tmp/"
 	detector_offset = 6000  # micros
-	detector_sample_distance = 2100   # cm
+	detector_sample_distance = 21   # cm
 	epics_chopper_wavelength_range = [2, 10]  # Angstroms
 	o_make = MakeShutterValueFile(detector_offset=detector_offset,
 	                             output_folder=output_folder,
@@ -274,7 +274,7 @@ def test_list_lambda_dead_time_too_close_to_each_other():
 def test_list_lambda_dead_time_3_elements():
 	output_folder = "/tmp/"
 	detector_offset = 6000  # micros
-	detector_sample_distance = 2100   # cm
+	detector_sample_distance = 21   # cm
 	epics_chopper_wavelength_range = [2, 10]  # Angstroms
 	o_make = MakeShutterValueFile(detector_offset=detector_offset,
 	                             output_folder=output_folder,
@@ -308,7 +308,7 @@ def test_getting_right_above_closest_divided(delta_tof, above_closest_expected):
 def test_make_shutter_value_string():
 	output_folder = "/tmp/"
 	detector_offset = 6000  # micros
-	detector_sample_distance = 2100   # cm
+	detector_sample_distance = 21   # cm
 	epics_chopper_wavelength_range = [2, 10]  # Angstroms
 	o_make = MakeShutterValueFile(detector_offset=detector_offset,
 	                             output_folder=output_folder,

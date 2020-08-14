@@ -21,19 +21,19 @@ install:
   - conda config --set always_yes true
   - conda update conda
   - conda create -n testenv pip nose python=$TRAVIS_PYTHON_VERSION numpy
-#  - conda install --yes --file requirements.conda
   - source activate testenv
   - conda install pandas
   - pip install -U pytest
-  - pip install pytest-cov
+#  - pip install pytest-cov
   - pip install codecov
+  - pip install rednose
   - python setup.py install
 
 script:
-  - pytest -v --cov-report=xml --cov=shutter_value_generator test/
+  - pytest -v --cov-report=xml --cov=shutter_value_generator tests/
 
 after_success:
-  - codecov
+  - bash <(curl -s https://codecov.io/bash)
   
 notifications:
   email:

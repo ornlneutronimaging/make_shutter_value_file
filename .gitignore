@@ -1,7 +1,7 @@
 __pycache__
 
 .ipynb*
-.coverage
+.coveragerc
 /cover/*
 
 # mac
@@ -21,8 +21,8 @@ var
 sdist
 MANIFEST
 
-# Unit test / coverage reports
-.coverage 
+# Unit tests / coverage reports
+.coveragerc
 .pytest_cache
 
 # User-specific stuff:

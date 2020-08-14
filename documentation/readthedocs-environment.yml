@@ -1,4 +1,4 @@
-name: NeuNorm
+name: shutter_value_generator
 channels:
   - conda-forge
 dependencies:

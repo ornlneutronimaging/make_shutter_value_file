@@ -29,7 +29,7 @@ install:
   - python setup.py install
 
 script:
-  - pytest -v --cov=tests/
+  - pytest -v --cov=shutter_value_generator tests/
 
 after_success:
   - codecov

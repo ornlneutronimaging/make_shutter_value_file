@@ -9,5 +9,5 @@ pip install pytest-cov
 ```
 
 ```buildoutcfg
-pytest -v --cov=shutter_value_generator test/
+pytest -v --cov=shutter_value_generator tests/
 ```

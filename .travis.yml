@@ -25,7 +25,7 @@ install:
   - conda install pandas
   - pip install -U pytest
   - pip install pytest-cov
-#  - pip install codecov
+  - pip install codecov
   - pip install rednose
   - python setup.py install
 
@@ -33,7 +33,7 @@ script:
   - pytest -v --cov-report=xml --cov=shutter_value_generator tests/
 
 after_success:
-  - bash <(curl -s https://codecov.io/bash)
+  - codecov
   
 notifications:
   email:

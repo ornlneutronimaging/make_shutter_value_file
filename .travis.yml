@@ -24,8 +24,8 @@ install:
   - source activate testenv
   - conda install pandas
   - pip install -U pytest
-#  - pip install pytest-cov
-  - pip install codecov
+  - pip install pytest-cov
+#  - pip install codecov
   - pip install rednose
   - python setup.py install
 

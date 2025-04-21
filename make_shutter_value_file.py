@@ -52,14 +52,14 @@ else:
     epics_chopper_wavelength_range = None
 
 if epics_chopper_wavelength_range:
-    epics_chopper_wavelength_range = [np.float(_value) for _value in
+    epics_chopper_wavelength_range = [np.float32(_value) for _value in
                                                                     epics_chopper_wavelength_range]
 else:
     epics_chopper_wavelength_range = None
 
 if list_wavelength_dead_time:
 	list_wavelength_dead_time = list_wavelength_dead_time.split(",")
-	list_wavelength_dead_time = [np.float(_value) for _value in list_wavelength_dead_time]
+	list_wavelength_dead_time = [np.float32(_value) for _value in list_wavelength_dead_time]
 
 o_make = MakeShutterValueFile(output_folder=output_folder,
                               detector_sample_distance=detector_sample_distance,

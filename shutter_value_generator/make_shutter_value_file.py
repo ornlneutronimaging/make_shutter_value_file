@@ -32,6 +32,7 @@ class MakeShutterValueFile:
 	             resonance_mode=False,
 	             default_mode=False,
 	             epics_chopper_wavelength_range=None,
+				 no_output_file=False,
 	             verbose=False):
 		"""
 		:param output_folder:
@@ -39,6 +40,7 @@ class MakeShutterValueFile:
 		:param detector_offset:  in micros
 		:param resonance_mode: boolean
 		:param epics_chopper_wavelength_range: [value1, value2]
+		:param no_output_file: boolean (False by default) if True, will not create the output file
 		:param verbose: boolean (False by default) if True, will output in the stdout the content of the output file
 		"""
 		if output_folder is None:
@@ -83,6 +85,7 @@ class MakeShutterValueFile:
 		self.detector_offset = detector_offset
 		self.epics_chopper_wavelength_range = epics_chopper_wavelength_range
 		self.verbose = verbose
+		self.no_output_file = no_output_file
 		# self.minimum_measurable_lambda = self.calculate_minimum_measurable_lambda()
 
 	def run(self, list_lambda_dead_time=None):
@@ -124,8 +127,10 @@ class MakeShutterValueFile:
 			self.final_list_tof_frames = list_tof_frames
 
 			shutter_values_string = self.make_shutter_values_string(list_tof_frames=list_tof_frames)
-			MakeShutterValueFile.make_ascii_file_from_string(text=shutter_values_string,
-			                                                 filename=filename)
+
+			if not self.no_output_file:
+				MakeShutterValueFile.make_ascii_file_from_string(text=shutter_values_string,
+																filename=filename)
 
 		if self.verbose:
 			print(shutter_values_string)

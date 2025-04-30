@@ -21,7 +21,13 @@ MIN_TOF_BETWEEN_FRAMES = TOF_FRAMES[1][0] - TOF_FRAMES[0][1]
 
 RESONANCE_SHUTTER_VALUES = "1e-6\t320e-6\t3\t0.16"
 DEFAULT_SHUTTER_VALUES = "1e-6\t2.5e-3\t5\t10.24\n2.9e-3\t5.8e-3\t6\t10.24\n6.2e-3\t15.9e-3\t7\t10.24"
-TIME_BIN_MICROS = 10.24
+# TIME_BIN_MICROS = 10.24
+
+
+class TimeBinMicros:
+	ten_twenty_four = 10.24
+	five_twelve = 5.12
+
 
 
 class MakeShutterValueFile:
@@ -31,6 +37,7 @@ class MakeShutterValueFile:
 	             detector_offset=None,
 	             resonance_mode=False,
 	             default_mode=False,
+				 time_bin=TimeBinMicros.ten_twenty_four,
 	             epics_chopper_wavelength_range=None,
 				 no_output_file=False,
 	             verbose=False):
@@ -39,6 +46,7 @@ class MakeShutterValueFile:
 		:param detector_sample_distance: in m
 		:param detector_offset:  in micros
 		:param resonance_mode: boolean
+		:param time_bin: in micros (default 10.24 micros) 
 		:param epics_chopper_wavelength_range: [value1, value2]
 		:param no_output_file: boolean (False by default) if True, will not create the output file
 		:param verbose: boolean (False by default) if True, will output in the stdout the content of the output file
@@ -72,6 +80,9 @@ class MakeShutterValueFile:
 						"Provides the maximum range of wavelength in Angstroms the chopper are set up for! ["
 						"min_value, max_value]")
 
+			if not (time_bin == TimeBinMicros.ten_twenty_four or time_bin == TimeBinMicros.five_twelve):
+				raise AttributeError("Time bin must be 10.24 or 5.12 micros")
+
 			# _min_tof_peak_value_from_edge_of_frame = MakeShutterValueFile.convert_lambda_to_tof(
 			# 		list_wavelength=[MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME],
 			# 		detector_offset=detector_offset,
@@ -85,6 +96,7 @@ class MakeShutterValueFile:
 		self.detector_offset = detector_offset
 		self.epics_chopper_wavelength_range = epics_chopper_wavelength_range
 		self.verbose = verbose
+		self.time_bin = time_bin
 		self.no_output_file = no_output_file
 		# self.minimum_measurable_lambda = self.calculate_minimum_measurable_lambda()
 
@@ -160,7 +172,7 @@ class MakeShutterValueFile:
 		for _tof_frame in list_tof_frames:
 			_col_1 = _tof_frame[0]
 			_col_2 = _tof_frame[1]
-			_col_4 = TIME_BIN_MICROS
+			_col_4 = self.time_bin
 			_col_3 = self.get_above_closest_divided(delta_tof=_tof_frame[1] - _tof_frame[0])
 			shutter_value_array.append("{}\t{}\t{}\t{}".format(_col_1, _col_2, _col_3, _col_4))
 		return "\n".join(shutter_value_array)

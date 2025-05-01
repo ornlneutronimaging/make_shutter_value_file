@@ -33,6 +33,7 @@ class TimeBinMicros:
 class MakeShutterValueFile:
 
 	def __init__(self, output_folder=None,
+			  	 output_file_name=None,
 	             detector_sample_distance=None,
 	             detector_offset=None,
 	             resonance_mode=False,
@@ -98,6 +99,12 @@ class MakeShutterValueFile:
 		self.verbose = verbose
 		self.time_bin = time_bin
 		self.no_output_file = no_output_file
+
+		if output_file_name is None:
+			self.output_file_name = SHUTTER_VALUE_FILENAME
+		else:
+			self.output_file_name = output_file_name
+
 		# self.minimum_measurable_lambda = self.calculate_minimum_measurable_lambda()
 
 	def run(self, list_lambda_dead_time=None):
@@ -108,7 +115,7 @@ class MakeShutterValueFile:
 		least MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME (0.3 Angstroms) from each other, error is raised.
 		:return:
 		"""
-		filename = Path(self.output_folder) / SHUTTER_VALUE_FILENAME
+		filename = Path(self.output_folder) / self.output_file_name
 		if self.resonance_mode:
 			shutter_values_string = RESONANCE_SHUTTER_VALUES
 			MakeShutterValueFile.make_ascii_file_from_string(text=shutter_values_string,

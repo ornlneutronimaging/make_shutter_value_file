@@ -7,18 +7,18 @@ import os
 # from make_shutter_value_file import MakeShutterValueFile
 from shutter_value_generator import make_shutter_value_file
 
-
 parser = argparse.ArgumentParser(description="Display lambda requested with gaps")
 parser.add_argument('--verbose', '-v', default=0, action='count',
                     help='Display lambda requested with gaps')
+
 parser.add_argument('--detector_sample_distance',
                     default=25,
                     help='Distance detector to sample in m',
                     type=float)
-parser.add_argument('--detector_offset',
-                    default=0,
-                    help='Detector offset in micro seconds',
-                    type=float)
+# parser.add_argument('--detector_offset',
+#                     default=0,
+#                     help='Detector offset in micro seconds',
+#                     type=float)
 parser.add_argument('--list_lambda_requested',
                     help='List of lambda requested',
                     type=float,
@@ -34,22 +34,12 @@ parser.add_argument('--number_of_gaps_to_display',
 parser.add_argument('--time_bin',
                     type=float,
                     default=10.24,
-                    help='Time bin in microseconds')
+                    help='Time bin in microseconds (either 10.24 or 5.12)')
 parser.add_argument('--output_folder',
                     default='./',
                     help='Output folder where the ShutterValue.txt file will be created')
 
 args = parser.parse_args()
-
-detector_sample_distance = args.detector_sample_distance  # Distance detector to sample in m
-detector_offset = args.detector_offset # Detector offset in micro seconds
-list_lambda_requested = args.list_lambda_requested
-minimum_lambda_measurable = args.minimum_lambda_measurable  # Minimum lambda measurable in Angstrom
-number_of_gaps_to_display = args.number_of_gaps_to_display  # Number of gaps to display
-time_bin = args.time_bin  # Time bin in microseconds (either 10.24 or 5.12)
-output_folder = args.output_folder  # Output folder where the ShutterValue.txt file will be created
-
-list_lambda_requested.sort()
 
 def from_lambda_to_tof(lambda_value):
     """
@@ -62,6 +52,12 @@ def from_lambda_to_tof(lambda_value):
     coeff = (distance_source_detector) / 0.3956
     tof = lambda_value * coeff - detector_offset
     return tof 
+
+def convert_lambda_into_offset(lambda_value):
+    distance_source_detector = detector_sample_distance * 100  # Distance from source to detector (cm)
+    coeff = (distance_source_detector) / 0.3956
+    tof = lambda_value * coeff
+    return tof
 
 def from_tof_to_lambda(tof_value):
     """
@@ -81,9 +77,26 @@ def find_largest_gaps(data):
     largest_gaps = sorted(gap_list, reverse=True)[:number_of_gaps_to_display]
     return largest_gaps
 
-
 def calculate_mid_value(gap):
     return gap / 2
+
+detector_sample_distance = args.detector_sample_distance  # Distance detector to sample in m
+# detector_offset = args.detector_offset # Detector offset in micro seconds
+list_lambda_requested = args.list_lambda_requested
+minimum_lambda_measurable = args.minimum_lambda_measurable  # Minimum lambda measurable in Angstrom
+
+# calculate detector offset 
+detector_offset = convert_lambda_into_offset(minimum_lambda_measurable)
+print(f"##########################################")
+print(f"detector_offset = {detector_offset:.0f} microseconds")
+print(f"##########################################")
+
+
+number_of_gaps_to_display = args.number_of_gaps_to_display  # Number of gaps to display
+time_bin = args.time_bin  # Time bin in microseconds (either 10.24 or 5.12)
+output_folder = args.output_folder  # Output folder where the ShutterValue.txt file will be created
+
+list_lambda_requested.sort()
 
 # # display in angstroms
 # fig1, axs = plt.subplots(2, 1, figsize=(10, 8), num='lambda_requested')
@@ -108,6 +121,12 @@ combine_list_tof = [from_lambda_to_tof(x) for x in list_lambda_requested]
 # plt.tight_layout()
 
 # display gaps
+
+# remove all the lambda and tof requested that are below 0
+list_tof_below_zero = np.where(np.array(combine_list_tof) < 0)[0]
+if len(list_tof_below_zero) > 0:
+    combine_list_tof = np.delete(combine_list_tof, list_tof_below_zero)
+    list_lambda_requested = np.delete(list_lambda_requested, list_tof_below_zero)
 
 data = combine_list_tof
 largest_gaps = find_largest_gaps(data)
@@ -138,9 +157,8 @@ for left_value, right_value in zip(combine_list_tof[:-1], combine_list_tof[1:]):
         axs2[0].axvspan(left_value, right_value, color='green', alpha=alpha_index, label='Gap area')
 
 # show that everything behind 1/60 (s) + offset can not be measured
-axs2[0].axvspan(1/60 * 1e6, combine_list_tof[-1], color='red', hatch="/", alpha=0.5, label='Not measurable area')
+axs2[0].axvspan(1/60 * 1e6, xmax, color='red', hatch="/", alpha=0.5, label='Not measurable area')
 # axs2[0].set_xlim(xmin, xmax)
-
 
 # do the same but in Angstrom scale
 axs2[1].plot(combine_list, np.arange(len(combine_list)), 'ro', label='list_shutter_requested1')
@@ -162,16 +180,18 @@ for left_value, right_value in zip(combine_list[:-1], combine_list[1:]):
         axs2[1].axvspan(left_value, right_value, color='green', alpha=alpha_index, label='Gap area')
 
 last_value_measurable = from_tof_to_lambda(1/60 * 1e6)
-axs2[1].axvspan(last_value_measurable, combine_list[-1], color='red', hatch="/", alpha=0.5, label='Not measurable area')
+axs2[1].axvspan(last_value_measurable, xmax, color='red', hatch="/", alpha=0.5, label='Not measurable area')
 
 plt.draw()
 plt.pause(0.1)
 plt.tight_layout()
 plt.show(block=False)
 
+# ===================================================================================================
 # ask for dead time values
-dead_time_values = input("Enter center of dead time values in lambda (space separated): ")
-dead_time_values = dead_time_values.split(" ")
+temp_dead_time_values = input("Enter center of dead time values in lambda (space separated) (type SAVE when you are done!): ")
+
+dead_time_values = temp_dead_time_values.split(" ")
 dead_time_values = [float(value) for value in dead_time_values]
 
 o_shutter_value = make_shutter_value_file.MakeShutterValueFile(detector_sample_distance=25.0,
@@ -179,18 +199,33 @@ o_shutter_value = make_shutter_value_file.MakeShutterValueFile(detector_sample_d
                                                                 output_folder=output_folder,
                                                                 verbose=True,
                                                                 time_bin=time_bin,
-                                                                no_output_file=False,
+                                                                no_output_file=True,
                                                                 epics_chopper_wavelength_range=[minimum_lambda_measurable, 
                                                                                                 np.array(list_lambda_requested).max()],
                                                                 )
-
-print(f"Shutter value file will be created in {output_folder} and named ShutterValues.txt")
 
 shutter_values = o_shutter_value.run(list_lambda_dead_time=dead_time_values)
 
 # plot in TOF scale this time
 
 fig3, axs3 = plt.subplots(1, 1, figsize=(10, 8), num='Shutter values gaps and frames')
+fig3.subplots_adjust(bottom=0.2)
+
+dead_time_values = temp_dead_time_values.split(" ")
+dead_time_values = [float(value) for value in dead_time_values]
+
+o_shutter_value = make_shutter_value_file.MakeShutterValueFile(detector_sample_distance=25.0,
+                                                                detector_offset=detector_offset,
+                                                                output_folder=output_folder,
+                                                                verbose=True,
+                                                                time_bin=time_bin,
+                                                                no_output_file=True,
+                                                                epics_chopper_wavelength_range=[minimum_lambda_measurable, 
+                                                                                                np.array(list_lambda_requested).max()],
+                                                                )
+
+shutter_values = o_shutter_value.run(list_lambda_dead_time=dead_time_values)
+
 axs3.plot(combine_list_tof, np.arange(len(combine_list)), 'ro', label='list_shutter_requested1')
 axs3.set_xlabel('TOF (microseconds)')
 axs3.set_title('Preview of TimeSpectra file')
@@ -220,3 +255,22 @@ axs3.axvspan(1/60 * 1e6, combine_list_tof[-1], color='red', hatch="/", alpha=0.5
 
 plt.draw()
 plt.show(block=True)
+
+
+print("Saving shutter value file...")
+
+dead_time_values = temp_dead_time_values.split(" ")
+dead_time_values = [float(value) for value in dead_time_values]
+
+o_shutter_value = make_shutter_value_file.MakeShutterValueFile(detector_sample_distance=25.0,
+                                                                detector_offset=detector_offset,
+                                                                output_folder=output_folder,
+                                                                verbose=True,
+                                                                time_bin=time_bin,
+                                                                no_output_file=True,
+                                                                epics_chopper_wavelength_range=[minimum_lambda_measurable, 
+                                                                                                np.array(list_lambda_requested).max()],
+                                                                )
+
+print(f"Shutter value file will be created in {output_folder} and named ShutterValues.txt")
+print("Shutter value file saved.")

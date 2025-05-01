@@ -70,14 +70,20 @@ plt.tight_layout()
         # plt.axvspan(left_value, right_value, color='green', alpha=alpha_index, label='Gap area')
 
 index = 0.1
+display_label = True
 for left_value, right_value in o_shutter_value.final_list_tof_frames:
     left_value_micros = left_value * 1e6
     right_value_micros = right_value * 1e6
     
-    axs3.axvspan(left_value_micros, right_value_micros, color='blue', alpha=index, label='Shutter value')
+    if display_label:
+        axs3.axvspan(left_value_micros, right_value_micros, color='blue', alpha=index, label='Shutter frame')
+        display_label = False
+    else:
+        axs3.axvspan(left_value_micros, right_value_micros, color='blue', alpha=index)
     index += 0.1
 
-axs3.axvspan(1/60 * 1e6, combine_list_tof[-1], color='red', hatch="/", alpha=0.5, label='Not measurable area')
+axs3.axvspan(1/60 * 1e6, combine_list_tof[-1], color='red', hatch="/", alpha=0.5, label='Not measurable range')
+axs3.legend()
 
 # create new temporary file for step3 (create the shutter value file)
 # save the parameters defined by the user to be used in the next step

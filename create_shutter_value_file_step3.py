@@ -32,11 +32,13 @@ largest_gaps_lambda = config['largest_gaps_lambda']
 mid_values = config['mid_values']
 mid_values_lambda = config['mid_values_lambda']
 dead_time_values = config['dead_time_values']
+source_frequency = config['source_frequency']
 
 # main script
 
 o_shutter_value = make_shutter_value_file.MakeShutterValueFile(detector_sample_distance=detector_sample_distance,
                                                               detector_offset=detector_offset,
+                                                              source_frequency=source_frequency,
                                                               output_folder=output_folder,
                                                               output_file_name=output_file_name,
                                                               verbose=True,

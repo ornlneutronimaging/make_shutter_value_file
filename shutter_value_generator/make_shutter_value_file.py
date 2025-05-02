@@ -13,6 +13,14 @@ COEFF = (H / MN) * 1e6
 TOF_FRAMES = [[1e-6, 2.5e-3],
               [2.9e-3, 5.8e-3],
               [6.2e-3, 15.9e-3]]
+
+TOF_FRAMES_30_HZ = [[1e-6, 2.5e-3],
+				   [2.9e-3, 5.8e-3],
+				   [6.2e-3, 15.9e-3],
+				   [16.3e-3, 25.9e-3],
+				   [26.3e-3, 31.8e-3],
+]
+
 DEFAULT_list_lambda_dead_time = [np.mean([TOF_FRAMES[0][1], TOF_FRAMES[1][0]]),
                                   np.mean([TOF_FRAMES[1][1], TOF_FRAMES[2][0]])]
 MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME = 0.3  # Angstroms
@@ -21,7 +29,6 @@ MIN_TOF_BETWEEN_FRAMES = TOF_FRAMES[1][0] - TOF_FRAMES[0][1]
 
 RESONANCE_SHUTTER_VALUES = "1e-6\t320e-6\t3\t0.16"
 DEFAULT_SHUTTER_VALUES = "1e-6\t2.5e-3\t5\t10.24\n2.9e-3\t5.8e-3\t6\t10.24\n6.2e-3\t15.9e-3\t7\t10.24"
-# TIME_BIN_MICROS = 10.24
 
 
 class TimeBinMicros:
@@ -29,10 +36,15 @@ class TimeBinMicros:
 	five_twelve = 5.12
 
 
+class SourceFrequency:
+	sixty_hertz = 60
+	thirty_hertz = 30
+
 
 class MakeShutterValueFile:
 
 	def __init__(self, output_folder=None,
+			  	 source_frequency=SourceFrequency.sixty_hertz,
 			  	 output_file_name=None,
 	             detector_sample_distance=None,
 	             detector_offset=None,
@@ -44,6 +56,9 @@ class MakeShutterValueFile:
 	             verbose=False):
 		"""
 		:param output_folder:
+		:param source_frequency: 60 or 30 Hz
+		:param output_file_name: name of the output file
+		:param default_mode: boolean (True by default) if True, will use the default shutter values
 		:param detector_sample_distance: in m
 		:param detector_offset:  in micros
 		:param resonance_mode: boolean
@@ -99,6 +114,7 @@ class MakeShutterValueFile:
 		self.verbose = verbose
 		self.time_bin = time_bin
 		self.no_output_file = no_output_file
+		self.source_frequency = source_frequency
 
 		if output_file_name is None:
 			self.output_file_name = SHUTTER_VALUE_FILENAME
@@ -145,6 +161,7 @@ class MakeShutterValueFile:
 			list_tof_frames = self.make_list_tof_frames(list_tof_dead_time)
 			self.final_list_tof_frames = list_tof_frames
 
+			print(f"list_tof_frames = {list_tof_frames}")
 			shutter_values_string = self.make_shutter_values_string(list_tof_frames=list_tof_frames)
 
 			if not self.no_output_file:
@@ -155,17 +172,26 @@ class MakeShutterValueFile:
 			print(shutter_values_string)
 
 	def make_list_tof_frames(self, list_tof_dead_time):
+
+		if self.source_frequency == SourceFrequency.sixty_hertz:
+			_TOF_FRAMES = TOF_FRAMES
+		else:
+			_TOF_FRAMES = TOF_FRAMES_30_HZ
+
 		list_tof_frames = []
 		for _index, _tof_dead_time in enumerate(list_tof_dead_time):
 
 			if _index == 0:
-				left_tof = TOF_FRAMES[0][0]
+				left_tof = _TOF_FRAMES[0][0]
 				right_tof = _tof_dead_time - MIN_TOF_BETWEEN_FRAMES
 				list_tof_frames.append([left_tof, right_tof])
 
 			if _index == (len(list_tof_dead_time) - 1):
 				left_tof = _tof_dead_time + MIN_TOF_BETWEEN_FRAMES
-				right_tof = TOF_FRAMES[-1][1]
+				right_tof = _TOF_FRAMES[-1][1]
+				if left_tof > right_tof:
+					break
+				
 				list_tof_frames.append([left_tof, right_tof])
 				break
 
@@ -194,7 +220,15 @@ class MakeShutterValueFile:
 		delta_tof_ms = delta_tof * 1e3    # ms
 		clock_cycle_data = MakeShutterValueFile.get_clock_cycle_table()
 		clock_array = np.array(clock_cycle_data['Clock'])
+
+		print(f"clock_array = {clock_array}")
+		print(f"delta_tof_ms = {delta_tof_ms}")
+
+
 		where_delta_is_less_or_equal_than = np.where(delta_tof_ms <= clock_array)
+
+		print(f"where_delta_is_less_or_equal_than = {where_delta_is_less_or_equal_than}")
+
 		if where_delta_is_less_or_equal_than:
 			index = where_delta_is_less_or_equal_than[0][-1]
 			return np.array(clock_cycle_data['Divided'])[index]
@@ -217,9 +251,12 @@ class MakeShutterValueFile:
 		:param list_wavelength_requested:
 		:return:
 		"""
-
-		min_tof_from_default_time_spectra = TOF_FRAMES[0][0]
-		max_tof_from_default_time_spectra = TOF_FRAMES[-1][1]
+		if self.source_frequency == SourceFrequency.sixty_hertz:
+			min_tof_from_default_time_spectra = TOF_FRAMES[0][0]
+			max_tof_from_default_time_spectra = TOF_FRAMES[-1][1]
+		else:
+			min_tof_from_default_time_spectra = TOF_FRAMES_30_HZ[0][0]
+			max_tof_from_default_time_spectra = TOF_FRAMES_30_HZ[-1][1]
 
 		min_lambda = self.convert_tof_to_lambda(tof=min_tof_from_default_time_spectra,
 		                                        detector_offset=self.detector_offset,
@@ -329,6 +366,3 @@ class MakeShutterValueFile:
 			_right = _wave + MIN_LAMBDA_PEAK_VALUE_FROM_EDGE_OF_FRAME
 			dict_list_wavelength_requested[_wave] = [_left, _right]
 		return dict_list_wavelength_requested
-
-
-

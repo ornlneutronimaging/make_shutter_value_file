@@ -25,6 +25,7 @@ largest_gaps = config['largest_gaps']
 largest_gaps_lambda = config['largest_gaps_lambda']
 mid_values = config['mid_values']
 mid_values_lambda = config['mid_values_lambda']
+source_frequency = config['source_frequency']
 
 # main script
 dead_time_value = click.prompt("Enter the dead time values (in Angstroms) (ex: 2.95 5.15)", 
@@ -35,15 +36,17 @@ if "," in dead_time_values:
     dead_time_values = dead_time_values.replace(",", " ")
 dead_time_values = dead_time_values.split(" ")
 dead_time_values = [float(x) for x in dead_time_values]
+max_time_measurable = 1/source_frequency * 1e6  # in microseconds
 
 o_shutter_value = make_shutter_value_file.MakeShutterValueFile(detector_sample_distance=detector_sample_distance,
-                                                              detector_offset=detector_offset,
-                                                              output_folder="",
-                                                              verbose=True,
-                                                              time_bin=time_bin,
-                                                              no_output_file=True,
-                                                              epics_chopper_wavelength_range=[minimum_lambda_measurable, 
-                                                                                            np.array(list_lambda_requested).max()],
+                                                               detector_offset=detector_offset,
+                                                               output_folder="",
+                                                               verbose=True,
+                                                               source_frequency=source_frequency,
+                                                               time_bin=time_bin,
+                                                               no_output_file=True,
+                                                               epics_chopper_wavelength_range=[minimum_lambda_measurable, 
+                                                                                             np.array(list_lambda_requested).max()],
                                                             )
 
 shutter_values = o_shutter_value.run(list_lambda_dead_time=dead_time_values)
@@ -53,6 +56,7 @@ shutter_values = o_shutter_value.run(list_lambda_dead_time=dead_time_values)
 fig3, axs3 = plt.subplots(1, 1, figsize=(10, 8), num='Shutter values gaps and frames')
 
 axs3.plot(combine_list_tof, np.arange(len(combine_list)), 'ro', label='list_shutter_requested1')
+xmin, xmax = axs3.get_xlim()
 axs3.set_xlabel('TOF (microseconds)')
 axs3.set_title('Preview of TimeSpectra file')
 plt.tight_layout()
@@ -82,7 +86,7 @@ for left_value, right_value in o_shutter_value.final_list_tof_frames:
         axs3.axvspan(left_value_micros, right_value_micros, color='blue', alpha=index)
     index += 0.1
 
-axs3.axvspan(1/60 * 1e6, combine_list_tof[-1], color='red', hatch="/", alpha=0.5, label='Not measurable range')
+axs3.axvspan(max_time_measurable, xmax, color='red', hatch="/", alpha=0.5, label='Not measurable range')
 axs3.legend()
 
 # create new temporary file for step3 (create the shutter value file)
@@ -99,6 +103,7 @@ json_dict = {'detector_offset': detector_offset,
             'mid_values': mid_values,
             'mid_values_lambda': mid_values_lambda,
             'dead_time_values': dead_time_values,
+            'source_frequency': source_frequency,
             }
 
 home_dir = os.path.expanduser("~")

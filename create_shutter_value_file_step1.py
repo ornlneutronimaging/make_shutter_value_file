@@ -4,11 +4,11 @@ import matplotlib.pyplot as plt
 import os
 import json
 
-minimum_lambda_measurable = click.prompt("Enter the minimum lambda measurable (in Angstroms) ", type=float, default=1.9)
-detector_sample_distance = click.prompt("Enter the detector sample distance (in m) ", type=float, default=25)
-time_bin = click.prompt("Enter the time bin (10.24 or 5.12) ", type=float, default=5.12)
-
-list_lambda_requested = click.prompt("Enter the list of lambda requested (in Angstroms) (ex: 1.9 2.0 3.5)", type=str, default="4.07 3.36 6.73 2.62 2.49 2.22 3.28 3.84 6.23 ")
+minimum_lambda_measurable = click.prompt("Enter the minimum lambda measurable (in Angstroms) - default", type=float, default=1.9)
+detector_sample_distance = click.prompt("Enter the detector sample distance (in m) - default ", type=float, default=25)
+source_frequency = click.prompt("Enter the source frequency (30 or 60 Hz) - default ", type=float, default=60)
+time_bin = click.prompt("Enter the time bin (10.24 or 5.12) - default ", type=float, default=5.12)
+list_lambda_requested = click.prompt("Enter the list of lambda requested (in Angstroms) (ex: 1.9 2.0 3.5) - default ", type=str, default="4.07 3.36 6.73 2.62 2.49 2.22 3.28 3.84 6.23 ")
 list_lambda_requested = list_lambda_requested.strip()
 if "," in list_lambda_requested:
     list_lambda_requested = list_lambda_requested.replace(",", " ")
@@ -19,6 +19,8 @@ list_lambda_requested.sort()
 ## global variables
 number_of_gaps_to_display = 5
 
+# determine the red zone of the plots
+max_time_measurable = 1/source_frequency * 1e6  # in microseconds
 
 ## utilities functions
 
@@ -107,8 +109,8 @@ for left_value, right_value in zip(combine_list_tof[:-1], combine_list_tof[1:]):
             axs2[0].axvline(x=mid_value+left_value, color='b', linestyle='--')
             axs2[0].axvspan(left_value, right_value, color='green', alpha=alpha_index)
 
-# show that everything behind 1/60 (s) + offset can not be measured
-axs2[0].axvspan(1/60 * 1e6, xmax, color='red', hatch="/", alpha=0.5, label='Not measurable area')
+# show that everything behind max_time_measurable (s) + offset can not be measured
+axs2[0].axvspan(max_time_measurable, xmax, color='red', hatch="/", alpha=0.5, label='Not measurable area')
 # axs2[0].set_xlim(xmin, xmax)
 axs2[0].legend()
 
@@ -135,7 +137,7 @@ for left_value, right_value in zip(combine_list[:-1], combine_list[1:]):
             axs2[1].axvline(x=mid_value+left_value, color='b', linestyle='--')
             axs2[1].axvspan(left_value, right_value, color='green', alpha=alpha_index)
 
-last_value_measurable = from_tof_to_lambda(1/60 * 1e6, detector_offset, detector_sample_distance)
+last_value_measurable = from_tof_to_lambda(max_time_measurable, detector_offset, detector_sample_distance)
 axs2[1].axvspan(last_value_measurable, xmax, color='red', hatch="/", alpha=0.5, label='Not measurable area')
 axs2[1].legend()
 
@@ -150,7 +152,8 @@ json_dict = {'detector_offset': detector_offset,
             'largest_gaps': largest_gaps,
             'largest_gaps_lambda': largest_gaps_lambda,
             'mid_values': mid_values,
-            'mid_values_lambda': mid_values_lambda
+            'mid_values_lambda': mid_values_lambda,
+            'source_frequency': source_frequency,
             }
 
 home_dir = os.path.expanduser("~")

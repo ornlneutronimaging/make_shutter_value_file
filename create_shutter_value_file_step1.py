@@ -89,7 +89,7 @@ mid_values_lambda = [calculate_mid_value(gap) for gap in largest_gaps_lambda]
 fig2, axs2 = plt.subplots(2, 1, figsize=(10, 8), num='Display gaps')
 axs2[0].plot(combine_list_tof, np.arange(len(combine_list_tof)), 'ro', label='list_shutter_requested1')
 xmin, xmax = axs2[0].get_xlim()
-axs2[0].set_xlim(from_lambda_to_tof(minimum_lambda_measurable, detector_offset, detector_sample_distance), xmax)
+axs2[0].set_xlim(from_lambda_to_tof(minimum_lambda_measurable-0.1, detector_offset, detector_sample_distance), xmax)
 axs2[0].set_xlabel('TOF (microseconds)')
 axs2[0].set_title('TOF with largest gaps highlighted (gap center position value displayed)')
 
@@ -109,6 +109,11 @@ for left_value, right_value in zip(combine_list_tof[:-1], combine_list_tof[1:]):
             axs2[0].axvline(x=mid_value+left_value, color='b', linestyle='--')
             axs2[0].axvspan(left_value, right_value, color='green', alpha=alpha_index)
 
+# display the minimum tof measureable
+axs2[0].axvline(x=from_lambda_to_tof(minimum_lambda_measurable, detector_offset, detector_sample_distance), color='black', linestyle=':', label='Minimum TOF measurable')
+# display the maximum tof measurable
+axs2[0].axvline(x=max_time_measurable, color='black', linestyle='-', label='Maximum TOF measurable')
+
 # show that everything behind max_time_measurable (s) + offset can not be measured
 axs2[0].axvspan(max_time_measurable, xmax, color='red', hatch="/", alpha=0.5, label='Not measurable area')
 # axs2[0].set_xlim(xmin, xmax)
@@ -117,7 +122,7 @@ axs2[0].legend()
 # do the same but in Angstrom scale
 axs2[1].plot(combine_list, np.arange(len(combine_list)), 'ro', label='list_shutter_requested1')
 xmin, xmax = axs2[1].get_xlim()
-axs2[1].set_xlim(minimum_lambda_measurable, xmax)
+axs2[1].set_xlim(minimum_lambda_measurable-0.1, xmax)
 axs2[1].set_xlabel('Bragg peaks (Angstrom)')
 axs2[1].set_ylabel('Index')
 
@@ -137,7 +142,13 @@ for left_value, right_value in zip(combine_list[:-1], combine_list[1:]):
             axs2[1].axvline(x=mid_value+left_value, color='b', linestyle='--')
             axs2[1].axvspan(left_value, right_value, color='green', alpha=alpha_index)
 
+# display the minimum lambda measureable
+axs2[1].axvline(x=minimum_lambda_measurable, color='black', linestyle=':', label='Minimum lambda measurable')
+# display the maximum time measurable
 last_value_measurable = from_tof_to_lambda(max_time_measurable, detector_offset, detector_sample_distance)
+axs2[1].axvline(x=last_value_measurable, color='black', linestyle='-', label='Maximum lambda measurable')
+axs2[1].text(minimum_lambda_measurable, len(combine_list)-2, f'{minimum_lambda_measurable:.2f}', rotation=45, verticalalignment='bottom')
+
 axs2[1].axvspan(last_value_measurable, xmax, color='red', hatch="/", alpha=0.5, label='Not measurable area')
 axs2[1].legend()
 
@@ -146,13 +157,13 @@ json_dict = {'detector_offset': detector_offset,
             'detector_sample_distance': detector_sample_distance,
             'minimum_lambda_measurable': minimum_lambda_measurable,
             'time_bin': time_bin,
-            'list_lambda_requested': list_lambda_requested,
-            'combine_list_tof': combine_list_tof,
-            'combine_list': combine_list,
+            'list_lambda_requested': list(list_lambda_requested),
+            'combine_list_tof': list(combine_list_tof),
+            'combine_list': list(combine_list),
             'largest_gaps': largest_gaps,
             'largest_gaps_lambda': largest_gaps_lambda,
-            'mid_values': mid_values,
-            'mid_values_lambda': mid_values_lambda,
+            'mid_values': list(mid_values),
+            'mid_values_lambda': list(mid_values_lambda),
             'source_frequency': source_frequency,
             }
 

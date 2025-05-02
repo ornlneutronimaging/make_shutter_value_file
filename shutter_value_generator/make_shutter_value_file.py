@@ -161,7 +161,6 @@ class MakeShutterValueFile:
 			list_tof_frames = self.make_list_tof_frames(list_tof_dead_time)
 			self.final_list_tof_frames = list_tof_frames
 
-			print(f"list_tof_frames = {list_tof_frames}")
 			shutter_values_string = self.make_shutter_values_string(list_tof_frames=list_tof_frames)
 
 			if not self.no_output_file:
@@ -221,13 +220,7 @@ class MakeShutterValueFile:
 		clock_cycle_data = MakeShutterValueFile.get_clock_cycle_table()
 		clock_array = np.array(clock_cycle_data['Clock'])
 
-		print(f"clock_array = {clock_array}")
-		print(f"delta_tof_ms = {delta_tof_ms}")
-
-
 		where_delta_is_less_or_equal_than = np.where(delta_tof_ms <= clock_array)
-
-		print(f"where_delta_is_less_or_equal_than = {where_delta_is_less_or_equal_than}")
 
 		if where_delta_is_less_or_equal_than:
 			index = where_delta_is_less_or_equal_than[0][-1]

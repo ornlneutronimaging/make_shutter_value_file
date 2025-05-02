@@ -6,7 +6,7 @@ import json
 from shutter_value_generator import make_shutter_value_file
 
 output_folder = click.prompt("Enter the output folder ", type=str, default="./")
-output_file_name = click.prompt("Enter the output file name ", type=str, default="ShutterValues.txt")
+# output_file_name = click.prompt("Enter the output file name ", type=str, default="ShutterValues_<detector_offset>.txt")
 
 # load config file created in step1
 home_dir = os.path.expanduser("~")
@@ -36,6 +36,8 @@ source_frequency = config['source_frequency']
 
 # main script
 
+output_file_name = f"ShutterValues_{source_frequency}_hz_{int(detector_offset)}_micros.txt"
+
 o_shutter_value = make_shutter_value_file.MakeShutterValueFile(detector_sample_distance=detector_sample_distance,
                                                               detector_offset=detector_offset,
                                                               source_frequency=source_frequency,
@@ -50,7 +52,7 @@ o_shutter_value = make_shutter_value_file.MakeShutterValueFile(detector_sample_d
 
 shutter_values = o_shutter_value.run(list_lambda_dead_time=dead_time_values)
 
-print()
+print(f"Shutter values {output_file_name} saved in {output_folder}")
 
 # remove the temporary file
 if os.path.exists(json_file):

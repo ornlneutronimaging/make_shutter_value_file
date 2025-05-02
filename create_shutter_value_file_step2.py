@@ -86,7 +86,9 @@ for left_value, right_value in o_shutter_value.final_list_tof_frames:
         axs3.axvspan(left_value_micros, right_value_micros, color='blue', alpha=index)
     index += 0.1
 
-axs3.axvspan(max_time_measurable, xmax, color='red', hatch="/", alpha=0.5, label='Not measurable range')
+if xmax > max_time_measurable:
+    axs3.axvspan(max_time_measurable, xmax, color='red', hatch="/", alpha=0.5, label='Not measurable range')
+
 axs3.legend()
 
 # create new temporary file for step3 (create the shutter value file)

@@ -1,6 +1,9 @@
 //! Shutter Value Maker — Rust port of the three-step Python workflow
 //! (create_shutter_value_file_step1/2/3.py) as a single interactive GUI.
 
+// on Windows, don't open a console window behind the GUI
+#![windows_subsystem = "windows"]
+
 mod physics;
 mod shutter;
 

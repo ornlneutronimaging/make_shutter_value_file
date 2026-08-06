@@ -27,6 +27,23 @@ scripts in sequence, and no `~/.shutter_value_parameters.json` hand-off file.
   *Write shutter value file* to save `ShutterValues_<freq>_hz_<offset>_micros.txt`
   in the chosen output folder (same name and format as the Python version).
 
+## Windows package
+
+Cross-compile from this Linux machine (needs `cargo-xwin`, already installed):
+
+```bash
+cargo xwin build --release --target x86_64-pc-windows-msvc
+```
+
+Then refresh `package/ShutterValueMaker_windows_x64.zip` (self-contained exe +
+README, no runtime needed on Windows):
+
+```bash
+cd package
+cp ../target/x86_64-pc-windows-msvc/release/shutter_value_maker.exe ShutterValueMaker.exe
+zip -9 ShutterValueMaker_windows_x64.zip ShutterValueMaker.exe README_WINDOWS.txt
+```
+
 ## Physics parity with the Python code
 
 - `src/physics.rs` ports the step1 utility functions (rounded 0.3956 coefficient).

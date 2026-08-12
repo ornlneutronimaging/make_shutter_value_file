@@ -16,11 +16,16 @@ Single-window replacement for the three VENUS Python scripts
   Step 1 - Gaps preview   : enter minimum lambda measurable, detector-sample
                             distance, source frequency (30/60 Hz), time bin
                             (5.12/10.24 us) and the list of requested Bragg
-                            peaks. Plots show the 5 largest gaps (TOF and
-                            Angstrom scale) and the measurable range.
+                            peaks. The plot shows the 5 largest gaps and the
+                            measurable range; switch the x-axis between TOF
+                            (us) and lambda (Angstroms) with the toggle above
+                            the plot. The detector offset is computed from the
+                            minimum lambda ("auto") or can be typed in
+                            directly in us ("manual").
   Step 2 - Shutter frames : enter the dead-time lambdas (>= 2 values,
                             >= 0.3 Angstroms apart); preview the shutter
-                            frames and the shutter-values table.
+                            frames and the shutter-values table, with the
+                            same TOF/lambda x-axis toggle.
   Step 3 - Write file     : writes ShutterValues_<freq>_hz_<offset>_micros.txt
                             to the folder you choose (use the Browse button).
 

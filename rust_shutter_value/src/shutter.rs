@@ -106,12 +106,50 @@ pub fn make_list_tof_frames(list_tof_dead_time: &[f64], source_frequency: f64) -
     list_tof_frames
 }
 
+/// Format an f64 the way Python's str() does, so the written file is
+/// byte-identical to the Python version: shortest round-trip digits, fixed
+/// notation for exponents in [-4, 16), otherwise scientific with a signed
+/// two-digit exponent ("1e-06").
+pub fn python_float_repr(value: f64) -> String {
+    if value == 0.0 {
+        return if value.is_sign_negative() { "-0.0".into() } else { "0.0".into() };
+    }
+    if !value.is_finite() {
+        return if value.is_nan() {
+            "nan".into()
+        } else if value > 0.0 {
+            "inf".into()
+        } else {
+            "-inf".into()
+        };
+    }
+    let sci = format!("{value:e}"); // shortest mantissa, e.g. "1e-6"
+    let (mantissa, exp) = sci.split_once('e').unwrap();
+    let exp: i32 = exp.parse().unwrap();
+    if (-4..16).contains(&exp) {
+        let fixed = format!("{value}");
+        if fixed.contains('.') {
+            fixed
+        } else {
+            format!("{fixed}.0")
+        }
+    } else {
+        format!("{}e{}{:02}", mantissa, if exp < 0 { '-' } else { '+' }, exp.abs())
+    }
+}
+
 pub fn make_shutter_values_string(list_tof_frames: &[[f64; 2]], time_bin: f64) -> String {
     list_tof_frames
         .iter()
         .map(|frame| {
             let divided = get_above_closest_divided(frame[1] - frame[0]);
-            format!("{}\t{}\t{}\t{}", frame[0], frame[1], divided, time_bin)
+            format!(
+                "{}\t{}\t{}\t{}",
+                python_float_repr(frame[0]),
+                python_float_repr(frame[1]),
+                divided,
+                python_float_repr(time_bin)
+            )
         })
         .collect::<Vec<_>>()
         .join("\n")
@@ -203,6 +241,49 @@ mod tests {
             assert_eq!(cols[2], "4");
             assert_eq!(cols[3], "5.12");
         }
+    }
+
+    #[test]
+    fn float_repr_matches_python_str() {
+        assert_eq!(python_float_repr(1e-6), "1e-06");
+        assert_eq!(python_float_repr(1.5e-6), "1.5e-06");
+        assert_eq!(python_float_repr(1e-4), "0.0001");
+        assert_eq!(python_float_repr(1e-5), "1e-05");
+        assert_eq!(python_float_repr(0.0159), "0.0159");
+        assert_eq!(python_float_repr(5.12), "5.12");
+        assert_eq!(python_float_repr(10.24), "10.24");
+        assert_eq!(python_float_repr(0.0), "0.0");
+        assert_eq!(python_float_repr(1e15), "1000000000000000.0");
+        assert_eq!(python_float_repr(1e16), "1e+16");
+        assert_eq!(python_float_repr(-2.5e-3), "-0.0025");
+    }
+
+    #[test]
+    fn file_content_is_byte_identical_to_python() {
+        // Reference bytes produced by running the Python library directly:
+        //   MakeShutterValueFile(detector_sample_distance=25.0, detector_offset=1.9*2500/0.3956,
+        //                        source_frequency=60.0, time_bin=5.12, ...)
+        //       .run(list_lambda_dead_time=[2.95, 3.60])
+        let detector_offset = 1.9 * 2500.0 / 0.3956;
+        let result = compute_shutter_values(&[2.95, 3.60], detector_offset, 25.0, 60.0, 5.12).unwrap();
+        let expected = "1e-06\t0.0062353301230534345\t4\t5.12\n\
+                        0.007035330123053433\t0.01034297933886975\t4\t5.12\n\
+                        0.011142979338869749\t0.0159\t4\t5.12";
+        assert_eq!(result.shutter_values_string, expected);
+    }
+
+    #[test]
+    fn file_content_is_byte_identical_to_python_30hz() {
+        // Reference bytes from the Python library: distance 23 m, offset from
+        // 2.5 A, 30 Hz, time bin 10.24, dead times [3.1, 4.2, 6.0]
+        let detector_offset = 2.5 * 2300.0 / 0.3956;
+        let result =
+            compute_shutter_values(&[3.1, 4.2, 6.0], detector_offset, 23.0, 30.0, 10.24).unwrap();
+        let expected = "1e-06\t0.0030882171460053652\t5\t10.24\n\
+                        0.0038882171460053647\t0.009483511002014774\t4\t10.24\n\
+                        0.010283511002014772\t0.01994853731184834\t3\t10.24\n\
+                        0.020748537311848343\t0.0318\t3\t10.24";
+        assert_eq!(result.shutter_values_string, expected);
     }
 
     #[test]

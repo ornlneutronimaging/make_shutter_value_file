@@ -32,10 +32,20 @@ enum Step {
     WriteFile,
 }
 
+#[derive(PartialEq, Clone, Copy)]
+enum XAxis {
+    Tof,
+    Lambda,
+}
+
 struct App {
     step: Step,
+    gaps_axis: XAxis,
+    frames_axis: XAxis,
     // step 1 inputs (defaults match the Python prompts)
     minimum_lambda_measurable: f64,
+    detector_offset_is_manual: bool,
+    manual_detector_offset: f64, // microseconds
     detector_sample_distance: f64,
     source_frequency: f64,
     time_bin: f64,
@@ -51,7 +61,11 @@ impl Default for App {
     fn default() -> Self {
         Self {
             step: Step::Gaps,
+            gaps_axis: XAxis::Tof,
+            frames_axis: XAxis::Tof,
             minimum_lambda_measurable: 1.9,
+            detector_offset_is_manual: false,
+            manual_detector_offset: 12006.0,
             detector_sample_distance: 25.0,
             source_frequency: 60.0,
             time_bin: 5.12,
@@ -64,8 +78,9 @@ impl Default for App {
 }
 
 struct Step1Result {
-    detector_offset: f64,      // microseconds
-    list_lambda: Vec<f64>,     // sorted, only measurable (tof >= 0)
+    detector_offset: f64,        // microseconds
+    minimum_lambda_measurable: f64, // Angstroms (equals the input in auto mode, derived in manual mode)
+    list_lambda: Vec<f64>,       // sorted, only measurable (tof >= 0)
     list_tof: Vec<f64>,        // microseconds, same order
     largest_gaps_tof: Vec<f64>,
     largest_gaps_lambda: Vec<f64>,
@@ -99,8 +114,14 @@ impl App {
         let mut list_lambda = parse_float_list(&self.lambda_requested_text)?;
         list_lambda.sort_by(|a, b| a.partial_cmp(b).unwrap());
 
-        let detector_offset =
-            physics::convert_lambda_into_offset(self.minimum_lambda_measurable, self.detector_sample_distance);
+        let detector_offset = if self.detector_offset_is_manual {
+            self.manual_detector_offset
+        } else {
+            physics::convert_lambda_into_offset(self.minimum_lambda_measurable, self.detector_sample_distance)
+        };
+        // lambda reaching the detector at TOF = 0; equals the input minimum lambda in auto mode
+        let minimum_lambda_measurable =
+            physics::from_tof_to_lambda(0.0, detector_offset, self.detector_sample_distance);
 
         // drop lambdas whose TOF falls below zero, like step1 does
         let mut list_tof = Vec::new();
@@ -124,6 +145,7 @@ impl App {
 
         Ok(Step1Result {
             detector_offset,
+            minimum_lambda_measurable,
             list_lambda: kept_lambda,
             list_tof,
             largest_gaps_tof,
@@ -182,7 +204,25 @@ impl eframe::App for App {
 
             egui::Grid::new("param_grid").num_columns(2).spacing([8.0, 8.0]).show(ui, |ui| {
                 ui.label("Minimum lambda measurable (Å)");
-                ui.add(egui::DragValue::new(&mut self.minimum_lambda_measurable).speed(0.01).range(0.0..=100.0));
+                ui.add_enabled(
+                    !self.detector_offset_is_manual,
+                    egui::DragValue::new(&mut self.minimum_lambda_measurable).speed(0.01).range(0.0..=100.0),
+                );
+                ui.end_row();
+
+                ui.label("Detector offset");
+                ui.horizontal(|ui| {
+                    ui.selectable_value(&mut self.detector_offset_is_manual, false, "auto");
+                    ui.selectable_value(&mut self.detector_offset_is_manual, true, "manual");
+                    if self.detector_offset_is_manual {
+                        ui.add(
+                            egui::DragValue::new(&mut self.manual_detector_offset)
+                                .speed(10.0)
+                                .range(0.0..=1e7)
+                                .suffix(" µs"),
+                        );
+                    }
+                });
                 ui.end_row();
 
                 ui.label("Detector-sample distance (m)");
@@ -216,6 +256,16 @@ impl eframe::App for App {
                             .strong()
                             .color(Color32::from_rgb(0, 140, 0)),
                     );
+                    if self.detector_offset_is_manual {
+                        ui.label(
+                            RichText::new(format!(
+                                "minimum lambda measurable = {:.2} Å",
+                                s1.minimum_lambda_measurable
+                            ))
+                            .strong()
+                            .color(Color32::from_rgb(0, 140, 0)),
+                        );
+                    }
                 }
                 Err(e) => {
                     ui.colored_label(Color32::RED, format!("Step 1 input error: {e}"));
@@ -261,13 +311,27 @@ impl eframe::App for App {
         egui::CentralPanel::default().show_inside(root, |ui| match self.step {
             Step::Gaps => {
                 if let Ok(s1) = &step1 {
-                    show_gaps_plots(ui, s1, self.minimum_lambda_measurable, self.detector_sample_distance);
+                    ui.horizontal(|ui| {
+                        ui.label("X-axis units:");
+                        ui.selectable_value(&mut self.gaps_axis, XAxis::Tof, "TOF (µs)");
+                        ui.selectable_value(&mut self.gaps_axis, XAxis::Lambda, "Lambda (Å)");
+                    });
+                    ui.add_space(4.0);
+                    show_gaps_plots(ui, s1, self.detector_sample_distance, self.gaps_axis);
                 } else {
                     ui.label("Fix the step 1 inputs to see the gaps preview.");
                 }
             }
             Step::Frames => match (&step1, &step2) {
-                (Ok(s1), Some(Ok(s2))) => show_frames_plot(ui, s1, s2),
+                (Ok(s1), Some(Ok(s2))) => {
+                    ui.horizontal(|ui| {
+                        ui.label("X-axis units:");
+                        ui.selectable_value(&mut self.frames_axis, XAxis::Tof, "TOF (µs)");
+                        ui.selectable_value(&mut self.frames_axis, XAxis::Lambda, "Lambda (Å)");
+                    });
+                    ui.add_space(4.0);
+                    show_frames_plot(ui, s1, s2, self.detector_sample_distance, self.frames_axis);
+                }
                 _ => {
                     ui.label("Fix the inputs (lambda list and dead time values) to see the shutter frames preview.");
                 }
@@ -313,14 +377,18 @@ fn vspan(name: &str, left: f64, right: f64, y_max: f64, color: Color32) -> Polyg
         .stroke(egui::Stroke::NONE)
 }
 
-fn show_gaps_plots(ui: &mut egui::Ui, s1: &Step1Result, minimum_lambda: f64, distance: f64) {
-    let n = s1.list_tof.len();
-    let y_max = n as f64;
-    let plot_height = ui.available_height() / 2.0 - 10.0;
+fn show_gaps_plots(ui: &mut egui::Ui, s1: &Step1Result, distance: f64, axis: XAxis) {
+    let y_max = s1.list_tof.len() as f64;
+    let plot_height = ui.available_height() - 30.0;
+    match axis {
+        XAxis::Tof => show_gaps_plot_tof(ui, s1, distance, y_max, plot_height),
+        XAxis::Lambda => show_gaps_plot_lambda(ui, s1, distance, y_max, plot_height),
+    }
+}
 
-    // ---------- TOF scale ----------
+fn show_gaps_plot_tof(ui: &mut egui::Ui, s1: &Step1Result, distance: f64, y_max: f64, plot_height: f32) {
     ui.label(RichText::new("TOF with largest gaps highlighted (gap center position value displayed)").strong());
-    let min_tof = physics::from_lambda_to_tof(minimum_lambda, s1.detector_offset, distance);
+    let min_tof = physics::from_lambda_to_tof(s1.minimum_lambda_measurable, s1.detector_offset, distance);
     let x_max_tof = s1
         .list_tof
         .last()
@@ -388,11 +456,11 @@ fn show_gaps_plots(ui: &mut egui::Ui, s1: &Step1Result, minimum_lambda: f64, dis
                 ));
             }
         });
+}
 
-    ui.add_space(6.0);
-
-    // ---------- lambda scale ----------
-    ui.label(RichText::new("Bragg peaks (Angstroms)").strong());
+fn show_gaps_plot_lambda(ui: &mut egui::Ui, s1: &Step1Result, distance: f64, y_max: f64, plot_height: f32) {
+    ui.label(RichText::new("Bragg peaks with largest gaps highlighted (gap center position value displayed)").strong());
+    let minimum_lambda = s1.minimum_lambda_measurable;
     let last_lambda_measurable =
         physics::from_tof_to_lambda(s1.max_time_measurable, s1.detector_offset, distance);
     let x_max_lambda = s1
@@ -468,29 +536,41 @@ fn show_gaps_plots(ui: &mut egui::Ui, s1: &Step1Result, minimum_lambda: f64, dis
         });
 }
 
-fn show_frames_plot(ui: &mut egui::Ui, s1: &Step1Result, s2: &Step2Result) {
+fn show_frames_plot(ui: &mut egui::Ui, s1: &Step1Result, s2: &Step2Result, distance: f64, axis: XAxis) {
     ui.label(RichText::new("Preview of TimeSpectra file — shutter values gaps and frames").strong());
 
+    // map a TOF (µs) onto the selected x-axis; from_tof_to_lambda is linear
+    // and increasing, so spans and maxima keep their order after conversion
+    let to_x = |tof_us: f64| match axis {
+        XAxis::Tof => tof_us,
+        XAxis::Lambda => physics::from_tof_to_lambda(tof_us, s1.detector_offset, distance),
+    };
+    let x_axis_label = match axis {
+        XAxis::Tof => "TOF (microseconds)",
+        XAxis::Lambda => "Bragg peaks (Angstrom)",
+    };
+
     let y_max = s1.list_tof.len() as f64;
-    let x_max = s1
+    let max_measurable_x = to_x(s1.max_time_measurable);
+    let x_max = to_x(s1
         .list_tof
         .last()
         .copied()
         .unwrap_or(0.0)
         .max(s1.max_time_measurable)
-        .max(s2.frames_s.last().map(|f| f[1] * 1e6).unwrap_or(0.0))
+        .max(s2.frames_s.last().map(|f| f[1] * 1e6).unwrap_or(0.0)))
         * 1.05;
 
     Plot::new("frames_plot")
         .height(ui.available_height() - 140.0)
         .legend(Legend::default())
-        .x_axis_label("TOF (microseconds)")
+        .x_axis_label(x_axis_label)
         .y_axis_label("Index")
         .show(ui, |plot_ui| {
             let mut alpha = 0.1f32;
             for frame in &s2.frames_s {
-                let left = frame[0] * 1e6;
-                let right = frame[1] * 1e6;
+                let left = to_x(frame[0] * 1e6);
+                let right = to_x(frame[1] * 1e6);
                 plot_ui.polygon(vspan(
                     "Shutter frame",
                     left,
@@ -507,7 +587,7 @@ fn show_frames_plot(ui: &mut egui::Ui, s1: &Step1Result, s2: &Step2Result) {
                     s1.list_tof
                         .iter()
                         .enumerate()
-                        .map(|(i, &t)| [t, i as f64])
+                        .map(|(i, &t)| [to_x(t), i as f64])
                         .collect::<Vec<_>>(),
                 )
                 .color(Color32::RED)
@@ -515,10 +595,10 @@ fn show_frames_plot(ui: &mut egui::Ui, s1: &Step1Result, s2: &Step2Result) {
                 .radius(4.0),
             );
 
-            if x_max > s1.max_time_measurable {
+            if x_max > max_measurable_x {
                 plot_ui.polygon(vspan(
                     "Not measurable range",
-                    s1.max_time_measurable,
+                    max_measurable_x,
                     x_max,
                     y_max,
                     Color32::from_rgba_unmultiplied(200, 0, 0, 80),

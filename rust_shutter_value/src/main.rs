@@ -6,6 +6,7 @@
 
 mod physics;
 mod shutter;
+mod theme;
 
 use anyhow::{anyhow, Result};
 use egui::{Color32, RichText};
@@ -21,7 +22,12 @@ fn main() -> eframe::Result {
     eframe::run_native(
         "Shutter Value Maker",
         options,
-        Box::new(|_cc| Ok(Box::new(App::default()))),
+        Box::new(|cc| {
+            // Saved light/dark preference, shared by all the VENUS rust
+            // tools (dark when none is saved); the toolbar has a toggle.
+            cc.egui_ctx.set_theme(theme::load());
+            Ok(Box::new(App::default()))
+        }),
     )
 }
 
@@ -194,6 +200,8 @@ impl eframe::App for App {
                 ui.selectable_value(&mut self.step, Step::Gaps, "Step 1 — Gaps preview");
                 ui.selectable_value(&mut self.step, Step::Frames, "Step 2 — Shutter frames");
                 ui.selectable_value(&mut self.step, Step::WriteFile, "Step 3 — Write file");
+                ui.separator();
+                theme::toggle_button(ui);
             });
         });
 

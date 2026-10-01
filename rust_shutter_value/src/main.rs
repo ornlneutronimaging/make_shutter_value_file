@@ -10,7 +10,7 @@ mod theme;
 
 use anyhow::{anyhow, Result};
 use egui::{Color32, RichText};
-use egui_plot::{Legend, LineStyle, MarkerShape, Plot, PlotPoint, PlotPoints, Points, Polygon, Text, VLine};
+use egui_plot::{CoordinatesFormatter, Corner, Legend, LineStyle, MarkerShape, Plot, PlotPoint, PlotPoints, Points, Polygon, Text, VLine};
 
 const NUMBER_OF_GAPS_TO_DISPLAY: usize = 5;
 
@@ -206,6 +206,11 @@ impl eframe::App for App {
         });
 
         egui::Panel::left("inputs").min_size(330.0).show_inside(root, |ui| {
+            if self.step != Step::WriteFile {
+                egui::Panel::bottom("color_legend").show_inside(ui, |ui| {
+                    show_color_legend(ui, self.step, self.gaps_axis);
+                });
+            }
             ui.add_space(6.0);
             ui.heading("Parameters");
             ui.add_space(6.0);
@@ -366,6 +371,65 @@ impl eframe::App for App {
     }
 }
 
+/// one row of the color legend: a small color swatch followed by its explanation
+fn legend_row(ui: &mut egui::Ui, color: Color32, text: &str) {
+    ui.horizontal_top(|ui| {
+        let (rect, _) = ui.allocate_exact_size(egui::vec2(14.0, 14.0), egui::Sense::hover());
+        ui.painter().rect_filled(rect, 2.0, color);
+        ui.add(egui::Label::new(text).wrap());
+    });
+}
+
+/// explanation of the colors used in the plot of the current step
+fn show_color_legend(ui: &mut egui::Ui, step: Step, gaps_axis: XAxis) {
+    ui.add_space(6.0);
+    ui.label(RichText::new("Plot colors").strong());
+    ui.add_space(2.0);
+    legend_row(ui, Color32::RED, "Red dots: the lambda requested (one dot per value, y is its index in the list).");
+    match step {
+        Step::Gaps => {
+            let unit = match gaps_axis {
+                XAxis::Tof => "TOF",
+                XAxis::Lambda => "lambda",
+            };
+            legend_row(
+                ui,
+                gap_fill_color(0, NUMBER_OF_GAPS_TO_DISPLAY),
+                "Green bands: the largest gaps between two consecutive requested values. The darker the green, the larger the gap.",
+            );
+            legend_row(
+                ui,
+                Color32::BLUE,
+                "Blue dashed lines: center of each gap (value written at the top), a good candidate for a dead time position.",
+            );
+            legend_row(
+                ui,
+                Color32::BLACK,
+                &format!("Black dotted line: minimum {unit} measurable. Black solid line: maximum {unit} measurable (end of the source frame)."),
+            );
+            legend_row(
+                ui,
+                Color32::from_rgba_unmultiplied(200, 0, 0, 80),
+                "Light red band: not measurable, beyond the end of the source frame.",
+            );
+        }
+        Step::Frames => {
+            legend_row(
+                ui,
+                Color32::from_rgba_unmultiplied(0, 0, 220, 128),
+                "Blue bands: the shutter frames (data are recorded there). Each successive frame is drawn darker; the white space between two frames is a dead time.",
+            );
+            legend_row(
+                ui,
+                Color32::from_rgba_unmultiplied(200, 0, 0, 80),
+                "Light red band: not measurable, beyond the end of the source frame.",
+            );
+        }
+        Step::WriteFile => {}
+    }
+    ui.add_space(6.0);
+}
+
 /// green span whose darkness reflects the gap rank (port of the alpha logic in step1)
 fn gap_fill_color(rank: usize, total: usize) -> Color32 {
     let alpha = 1.0 - (rank as f32 + 1.0) / (total as f32 + 1.0);
@@ -383,6 +447,14 @@ fn vspan(name: &str, left: f64, right: f64, y_max: f64, color: Color32) -> Polyg
     Polygon::new(name, pts)
         .fill_color(color)
         .stroke(egui::Stroke::NONE)
+}
+
+/// live readout of the cursor position, shown in the bottom-left corner of a plot
+fn cursor_readout(axis: XAxis) -> CoordinatesFormatter<'static> {
+    CoordinatesFormatter::new(move |p, _| match axis {
+        XAxis::Tof => format!("TOF: {:.1} µs\nIndex: {:.2}", p.x, p.y),
+        XAxis::Lambda => format!("Lambda: {:.4} Å\nIndex: {:.2}", p.x, p.y),
+    })
 }
 
 fn show_gaps_plots(ui: &mut egui::Ui, s1: &Step1Result, distance: f64, axis: XAxis) {
@@ -410,6 +482,7 @@ fn show_gaps_plot_tof(ui: &mut egui::Ui, s1: &Step1Result, distance: f64, y_max:
         .legend(Legend::default())
         .x_axis_label("TOF (microseconds)")
         .y_axis_label("Index")
+        .coordinates_formatter(Corner::LeftBottom, cursor_readout(XAxis::Tof))
         .show(ui, |plot_ui| {
             // gap spans + mid lines
             for w in s1.list_tof.windows(2) {
@@ -484,6 +557,7 @@ fn show_gaps_plot_lambda(ui: &mut egui::Ui, s1: &Step1Result, distance: f64, y_m
         .legend(Legend::default())
         .x_axis_label("Bragg peaks (Angstrom)")
         .y_axis_label("Index")
+        .coordinates_formatter(Corner::LeftBottom, cursor_readout(XAxis::Lambda))
         .show(ui, |plot_ui| {
             for w in s1.list_lambda.windows(2) {
                 let gap = w[1] - w[0];
@@ -574,6 +648,7 @@ fn show_frames_plot(ui: &mut egui::Ui, s1: &Step1Result, s2: &Step2Result, dista
         .legend(Legend::default())
         .x_axis_label(x_axis_label)
         .y_axis_label("Index")
+        .coordinates_formatter(Corner::LeftBottom, cursor_readout(axis))
         .show(ui, |plot_ui| {
             let mut alpha = 0.1f32;
             for frame in &s2.frames_s {
